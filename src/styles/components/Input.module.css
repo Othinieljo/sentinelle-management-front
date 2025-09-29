@@ -1,0 +1,175 @@
+/* Input Component Styles - SENTINELLE Design System */
+.inputWrapper {
+  @apply relative w-full;
+}
+
+.input {
+  @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl 
+         focus:border-orange-500 focus:ring-4 focus:ring-orange-100
+         transition-all duration-200 placeholder-gray-400
+         font-poppins text-gray-900 bg-white
+         disabled:bg-gray-50 disabled:cursor-not-allowed
+         disabled:border-gray-100 disabled:text-gray-500;
+}
+
+.inputWithIcon {
+  @apply pl-12;
+}
+
+.inputWithRightIcon {
+  @apply pr-12;
+}
+
+.inputIcon {
+  @apply absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400
+         transition-colors duration-200;
+}
+
+.inputRightIcon {
+  @apply absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400
+         transition-colors duration-200 cursor-pointer;
+}
+
+.inputLabel {
+  @apply block text-sm font-medium text-gray-700 mb-2 font-poppins;
+}
+
+.inputError {
+  @apply border-red-300 focus:border-red-500 focus:ring-red-100;
+}
+
+.inputSuccess {
+  @apply border-green-300 focus:border-green-500 focus:ring-green-100;
+}
+
+.inputWarning {
+  @apply border-yellow-300 focus:border-yellow-500 focus:ring-yellow-100;
+}
+
+/* Focus states */
+.input:focus + .inputIcon {
+  @apply text-orange-500;
+}
+
+.input:focus + .inputRightIcon {
+  @apply text-orange-500;
+}
+
+/* Error states */
+.inputError + .inputIcon {
+  @apply text-red-500;
+}
+
+.inputError + .inputRightIcon {
+  @apply text-red-500;
+}
+
+/* Success states */
+.inputSuccess + .inputIcon {
+  @apply text-green-500;
+}
+
+.inputSuccess + .inputRightIcon {
+  @apply text-green-500;
+}
+
+/* Warning states */
+.inputWarning + .inputIcon {
+  @apply text-yellow-500;
+}
+
+.inputWarning + .inputRightIcon {
+  @apply text-yellow-500;
+}
+
+/* Helper text */
+.helperText {
+  @apply mt-2 text-sm text-gray-500 font-poppins;
+}
+
+.errorText {
+  @apply mt-2 text-sm text-red-600 font-poppins;
+}
+
+.successText {
+  @apply mt-2 text-sm text-green-600 font-poppins;
+}
+
+.warningText {
+  @apply mt-2 text-sm text-yellow-600 font-poppins;
+}
+
+/* Password toggle */
+.passwordToggle {
+  @apply hover:text-gray-600 transition-colors duration-200;
+}
+
+/* Floating label variant */
+.floatingLabel {
+  @apply relative;
+}
+
+.floatingInput {
+  @apply pt-6 pb-2;
+}
+
+.floatingLabelText {
+  @apply absolute left-4 transition-all duration-200 pointer-events-none
+         text-gray-500 font-poppins;
+}
+
+.floatingLabelTextFocused {
+  @apply -top-2 left-3 text-xs text-orange-500 bg-white px-1;
+}
+
+.floatingLabelTextFilled {
+  @apply -top-2 left-3 text-xs text-gray-500 bg-white px-1;
+}
+
+/* Sizes */
+.sm {
+  @apply px-3 py-2 text-sm;
+}
+
+.md {
+  @apply px-4 py-3 text-base;
+}
+
+.lg {
+  @apply px-5 py-4 text-lg;
+}
+
+/* Variants */
+.outlined {
+  @apply border-2 border-gray-200 bg-transparent;
+}
+
+.filled {
+  @apply border-0 bg-gray-100 focus:bg-white;
+}
+
+.underlined {
+  @apply border-0 border-b-2 border-gray-200 rounded-none bg-transparent
+         focus:border-orange-500;
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30
+         placeholder-gray-600 text-gray-800;
+}
+
+/* Animation for focus */
+.input:focus {
+  @apply transform scale-[1.02];
+}
+
+/* Loading state */
+.loading {
+  @apply relative;
+}
+
+.loadingSpinner {
+  @apply absolute right-4 top-1/2 transform -translate-y-1/2
+         animate-spin w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full;
+}

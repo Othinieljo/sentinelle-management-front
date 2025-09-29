@@ -1,0 +1,204 @@
+/* Wheel Component Styles - SENTINELLE Design System */
+.wheelContainer {
+  @apply relative w-80 h-80 mx-auto perspective-1000;
+}
+
+.wheel {
+  @apply w-full h-full rounded-full shadow-2xl 
+         transform-gpu transition-transform duration-1000 ease-out
+         relative overflow-hidden;
+  box-shadow: 
+    0 0 0 8px rgba(249, 115, 22, 0.1),
+    0 0 0 16px rgba(249, 115, 22, 0.05),
+    inset 0 8px 32px rgba(0, 0, 0, 0.1),
+    0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.wheelSegment {
+  @apply absolute origin-center;
+  clip-path: polygon(50% 50%, 50% 0%, calc(50% + 45px) calc(50% - 45px));
+}
+
+.wheelCenter {
+  @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+         w-16 h-16 bg-white rounded-full shadow-xl border-4 border-orange-500
+         flex items-center justify-center text-orange-600 font-bold z-10;
+}
+
+.wheelPointer {
+  @apply absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2
+         w-0 h-0 border-l-8 border-r-8 border-b-12 border-l-transparent border-r-transparent
+         border-b-orange-500 z-20;
+}
+
+.wheelPointer::after {
+  content: '';
+  @apply absolute top-12 left-1/2 transform -translate-x-1/2
+         w-0 h-0 border-l-6 border-r-6 border-t-8 border-l-transparent border-r-transparent
+         border-t-orange-500;
+}
+
+/* Segment colors */
+.segment1 { background: linear-gradient(45deg, #f97316, #ea580c); }
+.segment2 { background: linear-gradient(45deg, #10b981, #059669); }
+.segment3 { background: linear-gradient(45deg, #3b82f6, #2563eb); }
+.segment4 { background: linear-gradient(45deg, #8b5cf6, #7c3aed); }
+.segment5 { background: linear-gradient(45deg, #f59e0b, #d97706); }
+.segment6 { background: linear-gradient(45deg, #ef4444, #dc2626); }
+.segment7 { background: linear-gradient(45deg, #06b6d4, #0891b2); }
+.segment8 { background: linear-gradient(45deg, #84cc16, #65a30d); }
+
+/* Text in segments */
+.segmentText {
+  @apply absolute text-white font-bold text-sm text-center
+         transform -translate-x-1/2 -translate-y-1/2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Animation states */
+.spinning {
+  @apply animate-spin;
+  animation-duration: 3s;
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.spinningSlow {
+  @apply animate-spin;
+  animation-duration: 6s;
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Glow effect */
+.glow {
+  @apply relative;
+}
+
+.glow::before {
+  content: '';
+  @apply absolute inset-0 rounded-full bg-orange-500 opacity-20 blur-xl
+         transform scale-110;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Particles effect */
+.particles {
+  @apply absolute inset-0 pointer-events-none;
+}
+
+.particle {
+  @apply absolute w-2 h-2 bg-orange-400 rounded-full opacity-70;
+  animation: particle-float 3s ease-in-out infinite;
+}
+
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateY(-20px) scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Button styles */
+.spinButton {
+  @apply absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-16
+         bg-gradient-to-r from-orange-500 to-orange-600 text-white
+         px-8 py-4 rounded-full font-bold text-lg shadow-xl
+         hover:shadow-2xl transition-all duration-300
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.spinButton:hover:not(:disabled) {
+  @apply transform -translate-x-1/2 translate-y-16 scale-105;
+}
+
+.spinButton:active:not(:disabled) {
+  @apply transform -translate-x-1/2 translate-y-16 scale-95;
+}
+
+/* Prize display */
+.prizeDisplay {
+  @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
+         bg-white rounded-2xl shadow-2xl p-6 text-center z-30
+         min-w-64;
+}
+
+.prizeTitle {
+  @apply text-2xl font-bold text-gray-900 mb-2;
+}
+
+.prizeDescription {
+  @apply text-gray-600 mb-4;
+}
+
+.prizeValue {
+  @apply text-3xl font-bold text-orange-600;
+}
+
+/* Loading state */
+.loading {
+  @apply relative;
+}
+
+.loading::after {
+  content: '';
+  @apply absolute inset-0 rounded-full border-4 border-orange-500 border-t-transparent
+         animate-spin;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .wheelContainer {
+    @apply w-64 h-64;
+  }
+  
+  .wheelCenter {
+    @apply w-12 h-12;
+  }
+  
+  .segmentText {
+    @apply text-xs;
+  }
+  
+  .spinButton {
+    @apply px-6 py-3 text-base;
+  }
+}
+
+/* 3D effects */
+.wheel3d {
+  transform-style: preserve-3d;
+}
+
+.wheel3d .wheel {
+  transform: rotateX(10deg) rotateY(0deg);
+}
+
+/* Custom animations */
+@keyframes wheel-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(3600deg);
+  }
+}
+
+@keyframes wheel-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+
+.wheelSpin {
+  animation: wheel-spin 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.wheelSlow {
+  animation: wheel-slow 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}

@@ -1,0 +1,269 @@
+/* Modal Component Styles - SENTINELLE Design System */
+.modalOverlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50
+         flex items-center justify-center p-4;
+}
+
+.modalContent {
+  @apply bg-white rounded-3xl shadow-large max-w-md w-full mx-4
+         transform transition-all duration-300 font-poppins
+         max-h-[90vh] overflow-hidden;
+}
+
+.modalEnter {
+  @apply opacity-0 scale-95;
+}
+
+.modalEnterActive {
+  @apply opacity-100 scale-100;
+}
+
+.modalExit {
+  @apply opacity-100 scale-100;
+}
+
+.modalExitActive {
+  @apply opacity-0 scale-95;
+}
+
+/* Sizes */
+.sm {
+  @apply max-w-sm;
+}
+
+.md {
+  @apply max-w-md;
+}
+
+.lg {
+  @apply max-w-lg;
+}
+
+.xl {
+  @apply max-w-xl;
+}
+
+.full {
+  @apply max-w-full mx-0 rounded-none;
+}
+
+/* Header */
+.modalHeader {
+  @apply p-6 border-b border-gray-100 flex items-center justify-between;
+}
+
+.modalTitle {
+  @apply text-xl font-semibold text-gray-900;
+}
+
+.modalSubtitle {
+  @apply text-sm text-gray-500 mt-1;
+}
+
+.closeButton {
+  @apply p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100
+         rounded-full transition-all duration-200;
+}
+
+.closeIcon {
+  @apply w-5 h-5;
+}
+
+/* Content */
+.modalBody {
+  @apply p-6 overflow-y-auto;
+}
+
+.modalFooter {
+  @apply p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3;
+}
+
+/* Variants */
+.default {
+  @apply bg-white;
+}
+
+.glass {
+  @apply bg-white bg-opacity-95 backdrop-blur-md border border-white border-opacity-20;
+}
+
+.dark {
+  @apply bg-gray-900 text-white;
+}
+
+.dark .modalHeader {
+  @apply border-gray-700;
+}
+
+.dark .modalFooter {
+  @apply bg-gray-800 border-gray-700;
+}
+
+/* Animation variants */
+.slideUp {
+  @apply transform translate-y-4;
+}
+
+.slideUp.modalEnterActive {
+  @apply translate-y-0;
+}
+
+.slideDown {
+  @apply transform -translate-y-4;
+}
+
+.slideDown.modalEnterActive {
+  @apply translate-y-0;
+}
+
+.slideLeft {
+  @apply transform translate-x-4;
+}
+
+.slideLeft.modalEnterActive {
+  @apply translate-x-0;
+}
+
+.slideRight {
+  @apply transform -translate-x-4;
+}
+
+.slideRight.modalEnterActive {
+  @apply translate-x-0;
+}
+
+/* Confirmation modal */
+.confirmation {
+  @apply text-center;
+}
+
+.confirmationIcon {
+  @apply w-16 h-16 mx-auto mb-4 text-orange-500;
+}
+
+.confirmationTitle {
+  @apply text-2xl font-bold text-gray-900 mb-2;
+}
+
+.confirmationMessage {
+  @apply text-gray-600 mb-6;
+}
+
+/* Alert modal */
+.alert {
+  @apply text-center;
+}
+
+.alertIcon {
+  @apply w-16 h-16 mx-auto mb-4;
+}
+
+.alertSuccess .alertIcon {
+  @apply text-green-500;
+}
+
+.alertError .alertIcon {
+  @apply text-red-500;
+}
+
+.alertWarning .alertIcon {
+  @apply text-yellow-500;
+}
+
+.alertInfo .alertIcon {
+  @apply text-blue-500;
+}
+
+/* Loading modal */
+.loading {
+  @apply text-center;
+}
+
+.loadingSpinner {
+  @apply w-12 h-12 mx-auto mb-4 animate-spin text-orange-500;
+}
+
+.loadingMessage {
+  @apply text-gray-600;
+}
+
+/* Form modal */
+.form {
+  @apply space-y-4;
+}
+
+.formGroup {
+  @apply space-y-2;
+}
+
+.formLabel {
+  @apply block text-sm font-medium text-gray-700;
+}
+
+.formInput {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg
+         focus:ring-2 focus:ring-orange-500 focus:border-orange-500;
+}
+
+.formError {
+  @apply text-sm text-red-600;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .modalContent {
+    @apply mx-2 rounded-2xl;
+  }
+  
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
+    @apply p-4;
+  }
+}
+
+/* Backdrop click area */
+.backdrop {
+  @apply absolute inset-0;
+}
+
+/* Focus trap */
+.focusTrap {
+  @apply outline-none;
+}
+
+/* Scroll lock */
+.scrollLock {
+  @apply overflow-hidden;
+}
+
+/* Custom animations */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalSlideOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+}
+
+.modalSlideIn {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modalSlideOut {
+  animation: modalSlideOut 0.3s ease-in;
+}
