@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-// @ts-ignore
+// @ts-expect-error - d3 types are not installed; we import the JS bundle directly
 import * as d3 from 'd3';
 import { 
   ArrowLeft,
