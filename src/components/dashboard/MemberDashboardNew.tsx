@@ -35,7 +35,7 @@ import { Input } from '@/components/ui/Input/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card/Card';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/Modal/Modal';
 import { useToast } from '@/hooks/useToast';
-import SpinWheelNew from '@/components/wheel/SpinWheelNew';
+import { useRouter } from 'next/navigation';
 import MyPrizesNew from '@/components/wheel/MyPrizesNew';
 import SpinHistoryNew from '@/components/wheel/SpinHistoryNew';
 
@@ -45,6 +45,7 @@ interface MemberDashboardProps {
 
 const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
   const { addToast } = useToast();
+  const router = useRouter();
   
   // États principaux
   const [activeCampaign, setActiveCampaign] = useState<ActiveCampaign | null>(null);
@@ -56,7 +57,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
   
   // États pour les modales
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showWheelModal, setShowWheelModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showPrizesModal, setShowPrizesModal] = useState(false);
   
@@ -65,9 +65,10 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
   
-  // États pour la roue
-  const [wheelSpinning, setWheelSpinning] = useState(false);
-  const [lastSpinResult, setLastSpinResult] = useState<SpinResult | null>(null);
+  // Fonction pour naviguer vers la roue
+  const handleGoToWheel = () => {
+    router.push('/member/wheel');
+  };
   
   // Charger les données initiales
   const loadInitialData = useCallback(async () => {
@@ -163,59 +164,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
     }
   };
 
-  // Tourner la roue
-  const handleSpinWheel = async () => {
-    if (!activeCampaign || !spinBalance || spinBalance.available_spins < 1) {
-      addToast({
-        type: 'error',
-        title: 'Pas de spins disponibles',
-        message: 'Vous devez d\'abord contribuer pour gagner des spins'
-      });
-      return;
-    }
-
-    setWheelSpinning(true);
-    try {
-      const spinData = {
-        campaign_id: activeCampaign.id,
-        user_agent: navigator.userAgent
-      };
-
-      const result = await MemberService.spinWheel(spinData);
-      setLastSpinResult(result);
-      
-      // Mettre à jour le solde de spins
-      const updatedBalance = await MemberService.getSpinBalance();
-      setSpinBalance(updatedBalance);
-      
-      // Recharger les gains
-      const updatedPrizes = await MemberService.getUserPrizes();
-      setPrizes(updatedPrizes);
-      
-      if (result.prize_won) {
-        addToast({
-          type: 'success',
-          title: '🎉 Félicitations !',
-          message: `Vous avez gagné : ${result.prize_won.name}`
-        });
-      } else {
-        addToast({
-          type: 'info',
-          title: 'Pas de chance cette fois',
-          message: 'Réessayez encore !'
-        });
-      }
-      
-    } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Erreur',
-        message: 'Impossible de tourner la roue'
-      });
-    } finally {
-      setWheelSpinning(false);
-    }
-  };
 
   // Calculer la progression vers le prochain spin
   const getProgressToNextSpin = () => {
@@ -354,21 +302,23 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
           </Card>
         </motion.div>
 
-        {/* Section Roue de la Fortune */}
+        {/* Section Actions Principales */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
+          className="grid grid-cols-1 gap-4"
         >
-          <Card className="bg-white shadow-lg border-0">
+          {/* Roue de la Fortune - Plus Prominente */}
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 shadow-lg">
             <CardContent className="p-6">
               <div className="text-center">
                 <div className="flex items-center justify-center mb-4">
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <RotateCcw className="w-8 h-8 text-purple-600" />
+                  <div className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full shadow-lg">
+                    <RotateCcw className="w-8 h-8 text-white" />
                   </div>
                 </div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
                   Roue de la Fortune
                 </h2>
                 <p className="text-gray-600 text-sm mb-6">
@@ -376,10 +326,9 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
                 </p>
                 
                 <Button
-                  onClick={() => setShowWheelModal(true)}
+                  onClick={handleGoToWheel}
                   variant="gradient"
-                  className="w-full py-4 text-lg font-semibold"
-                  disabled={!spinBalance || spinBalance.available_spins < 1}
+                  className="w-full py-4 text-lg font-semibold shadow-lg"
                 >
                   <Sparkles className="w-5 h-5 mr-2" />
                   Tourner la Roue
@@ -393,32 +342,33 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
 
-        {/* Section Historique */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="grid grid-cols-2 gap-4"
-        >
-          <Button
-            onClick={() => setShowHistoryModal(true)}
-            variant="ghost"
-            className="h-20 flex flex-col items-center justify-center bg-white shadow-lg"
-          >
-            <History className="w-6 h-6 text-blue-600 mb-2" />
-            <span className="text-sm font-medium">Paiements</span>
-          </Button>
-          
-          <Button
-            onClick={() => setShowPrizesModal(true)}
-            variant="ghost"
-            className="h-20 flex flex-col items-center justify-center bg-white shadow-lg"
-          >
-            <Trophy className="w-6 h-6 text-yellow-600 mb-2" />
-            <span className="text-sm font-medium">Mes Gains</span>
-          </Button>
+          {/* Actions Rapides */}
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              onClick={() => setShowHistoryModal(true)}
+              variant="ghost"
+              className="h-24 flex flex-col items-center justify-center bg-white shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="p-3 bg-blue-100 rounded-full mb-2">
+                <History className="w-6 h-6 text-blue-600" />
+              </div>
+              <span className="text-sm font-semibold">Paiements</span>
+              <span className="text-xs text-gray-500">{payments.length} transactions</span>
+            </Button>
+            
+            <Button
+              onClick={() => setShowPrizesModal(true)}
+              variant="ghost"
+              className="h-24 flex flex-col items-center justify-center bg-white shadow-lg hover:shadow-xl transition-shadow"
+            >
+              <div className="p-3 bg-yellow-100 rounded-full mb-2">
+                <Trophy className="w-6 h-6 text-yellow-600" />
+              </div>
+              <span className="text-sm font-semibold">Mes Gains</span>
+              <span className="text-xs text-gray-500">{prizes.length} prix</span>
+            </Button>
+          </div>
         </motion.div>
 
         {/* Modale de Paiement */}
@@ -434,8 +384,21 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
                 </label>
                 <Input
                   type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                  value={paymentAmount === 0 ? '' : paymentAmount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setPaymentAmount(0);
+                    } else {
+                      const numValue = parseFloat(value);
+                      setPaymentAmount(isNaN(numValue) ? 0 : numValue);
+                    }
+                  }}
+                  onFocus={(e) => {
+                    if (paymentAmount === 0) {
+                      e.target.select();
+                    }
+                  }}
                   placeholder="Entrez le montant"
                   min="100"
                 />
@@ -444,12 +407,22 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
                 </p>
               </div>
               
-              {paymentAmount > 0 && (
+              {paymentAmount >= 100 && (
                 <div className="bg-orange-50 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Spins gagnés:</span>
                     <span className="font-semibold text-orange-600">
                       {(paymentAmount / activeCampaign.amount_per_spin).toFixed(1)}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {paymentAmount > 0 && paymentAmount < 100 && (
+                <div className="bg-red-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-red-600">
+                      ⚠️ Montant minimum requis: 100 FCFA
                     </span>
                   </div>
                 </div>
@@ -481,35 +454,17 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
                 onClick={handleCreatePayment}
                 loading={paymentLoading}
                 disabled={paymentAmount < 100}
+                className={paymentAmount < 100 ? 'opacity-50 cursor-not-allowed' : ''}
               >
-                Créer le Paiement
+                {paymentAmount < 100 ? 'Montant minimum requis' : 'Créer le Paiement'}
               </Button>
             )}
           </ModalFooter>
         </Modal>
 
-        {/* Modale de la Roue */}
-        <Modal isOpen={showWheelModal} onClose={() => setShowWheelModal(false)}>
-          <ModalHeader>
-            <h3 className="text-lg font-semibold">Roue de la Fortune</h3>
-          </ModalHeader>
-          <ModalBody>
-            <SpinWheelNew
-              onSpinComplete={handleSpinWheel}
-              spinning={wheelSpinning}
-              availableSpins={spinBalance?.available_spins || 0}
-              lastResult={lastSpinResult}
-            />
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" onClick={() => setShowWheelModal(false)}>
-              Fermer
-            </Button>
-          </ModalFooter>
-        </Modal>
 
         {/* Modale Historique des Paiements */}
-        <Modal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)}>
+        <Modal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} size="lg">
           <ModalHeader>
             <h3 className="text-lg font-semibold">Historique des Paiements</h3>
           </ModalHeader>
@@ -524,7 +479,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
         </Modal>
 
         {/* Modale Mes Gains */}
-        <Modal isOpen={showPrizesModal} onClose={() => setShowPrizesModal(false)}>
+        <Modal isOpen={showPrizesModal} onClose={() => setShowPrizesModal(false)} size="lg">
           <ModalHeader>
             <h3 className="text-lg font-semibold">Mes Gains</h3>
           </ModalHeader>

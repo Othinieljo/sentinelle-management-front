@@ -154,7 +154,7 @@ const SpinHistory: React.FC<SpinHistoryProps> = ({ payments }) => {
       </div>
 
       {/* Statistiques rapides */}
-      <div className="mt-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4">
+      {/* <div className="mt-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4">
         <h4 className="font-semibold text-gray-900 mb-3">Résumé</h4>
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
@@ -170,7 +170,7 @@ const SpinHistory: React.FC<SpinHistoryProps> = ({ payments }) => {
             <p className="text-sm text-gray-600">Spins gagnés</p>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

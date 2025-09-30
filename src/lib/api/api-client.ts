@@ -10,7 +10,9 @@ class ApiClient {
   private refreshPromise: Promise<string> | null = null;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://religious-bobbe-jsoma-2beb0e57.koyeb.app/api';
+    // this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://religious-bobbe-jsoma-2beb0e57.koyeb.app/api';
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+
     
     this.client = axios.create({
       baseURL: this.baseURL,

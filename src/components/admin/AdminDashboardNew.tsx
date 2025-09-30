@@ -16,7 +16,8 @@ import {
   CreditCard,
   TrendingUp,
   Calendar,
-  Eye
+  Eye,
+  User
 } from 'lucide-react';
 import { Card, CardContent, CardTitle, CardHeader } from '../ui';
 import AdminHeader from './AdminHeader';
@@ -28,14 +29,20 @@ import SpinManagement from './SpinManagement';
 import { ReportService, DashboardReport } from '../../lib/services/reportService';
 import { CampaignService, Campaign } from '../../lib/services/campaignService';
 import { useToast } from '@/hooks/useToast';
+import { useRouter } from 'next/navigation';
 
 const AdminDashboardNew: React.FC = () => {
   const { addToast } = useToast();
+  const router = useRouter();
   
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'campaigns' | 'payments' | 'prizes' | 'spins' | 'analytics'>('overview');
   const [dashboardReport, setDashboardReport] = useState<DashboardReport | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [, setLoading] = useState(true);
+
+  const handleGoToMemberArea = () => {
+    router.push('/member');
+  };
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -125,6 +132,27 @@ const AdminDashboardNew: React.FC = () => {
 
     return (
       <div className="space-y-6">
+        {/* Bouton d'accès à l'espace membre */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0 }}
+          className="flex justify-center mb-6"
+        >
+          <motion.button
+            onClick={handleGoToMemberArea}
+            className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <User size={24} />
+            <div className="text-left">
+              <div className="font-semibold text-lg">Accéder à mon Espace Membre</div>
+              <div className="text-sm opacity-90">Participer aux campagnes et tourner la roue</div>
+            </div>
+          </motion.button>
+        </motion.div>
+
         {/* Statistiques principales */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <motion.div

@@ -141,9 +141,9 @@ const MyPrizes: React.FC<MyPrizesProps> = ({ prizes }) => {
                     Gagné le {new Date(prize.spin_date).toLocaleDateString('fr-FR')}
                   </span>
                 </div>
-                <div className="text-xs text-gray-500">
+                {/* <div className="text-xs text-gray-500">
                   {prize.campaign.name}
-                </div>
+                </div> */}
               </div>
             </div>
           </motion.div>

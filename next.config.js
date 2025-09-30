@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Optimisations de performance
-  experimental: {
-    optimizePackageImports: ['framer-motion', 'lucide-react'],
-  },
+  // experimental: {
+  //   optimizePackageImports: ['framer-motion', 'lucide-react'],
+  // },
   
   // Configuration des images
   images: {
@@ -11,13 +11,13 @@ const nextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   
-  // Configuration de compilation
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-  },
+  // // Configuration de compilation
+  // compiler: {
+  //   removeConsole: process.env.NODE_ENV === 'production',
+  // },
   
   // Configuration de sortie
-  output: 'standalone',
+  // output: 'standalone',
   
   // Configuration des headers de sécurité
   async headers() {

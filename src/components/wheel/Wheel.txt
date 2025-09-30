@@ -1,0 +1,656 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft,
+  Gift, 
+  Zap,
+  Trophy,
+  Sparkles,
+  AlertCircle,
+  Target
+} from 'lucide-react';
+import { MemberService, SpinBalance } from '@/lib/services/memberService';
+import { Button } from '@/components/ui/Button/Button';
+import { Card, CardContent } from '@/components/ui/Card/Card';
+import { useToastContext } from '@/components/ui/Toast/ToastProvider';
+import { useRouter } from 'next/navigation';
+
+const WheelPage: React.FC = () => {
+  const { addToast } = useToastContext();
+  const router = useRouter();
+  
+  // États
+  const [balance, setBalance] = useState<SpinBalance | null>(null);
+  const [activePrizes, setActivePrizes] = useState<any[]>([]);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const [wonPrize, setWonPrize] = useState<any | null>(null);
+  const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
+  const [finalRotation, setFinalRotation] = useState(0);
+  const [animationDuration, setAnimationDuration] = useState(0);
+
+  // Palette de couleurs pour les segments
+  const colors = [
+    '#f97316', '#ea580c', '#fb923c', '#c2410c',
+    '#f97316', '#ea580c', '#fb923c', '#c2410c'
+  ];
+
+  // Charger les données initiales
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const [balanceData, prizesData, campaignData] = await Promise.all([
+        MemberService.getSpinBalance(),
+        MemberService.getActivePrizes(),
+        MemberService.getActiveCampaign()
+      ]);
+      
+      setBalance(balanceData);
+      setActivePrizes(prizesData);
+      setActiveCampaign(campaignData);
+    } catch (err: any) {
+      console.error('Error loading wheel data:', err);
+      setError('Erreur lors du chargement des données');
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de charger les données de la roue'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [addToast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Gérer le tour de roue
+  const handleSpin = async () => {
+    if (!balance || balance.available_spins <= 0) {
+      addToast({
+        type: 'error',
+        title: 'Pas de spins disponibles',
+        message: 'Vous devez d\'abord contribuer pour gagner des spins'
+      });
+      return;
+    }
+
+    if (!activeCampaign) {
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Aucune campagne active trouvée'
+      });
+      return;
+    }
+
+    setIsSpinning(true);
+    setShowResult(false);
+    
+    try {
+      const result = await MemberService.spinWheel({
+        campaign_id: activeCampaign.id,
+        user_agent: navigator.userAgent
+      });
+      
+      // Calculer l'angle du prix gagné
+      let prizeIndex = 0;
+      if (result.prize_won) {
+        prizeIndex = activePrizes.findIndex(p => p.id === result.prize_won!.id);
+        if (prizeIndex === -1) prizeIndex = 0;
+      } else {
+        // Si pas de prix gagné, choisir un segment aléatoire pour l'effet visuel
+        prizeIndex = Math.floor(Math.random() * activePrizes.length);
+      }
+      
+      const segmentAngle = 360 / activePrizes.length;
+      
+      // Calculer l'angle cible pour que le pointeur soit au centre du segment gagné
+      // Le pointeur est en haut (0°), donc on veut que le segment gagné soit en haut
+      const targetAngle = prizeIndex * segmentAngle;
+      
+      // Ajouter plusieurs tours complets pour l'effet dramatique
+      const numberOfSpins = 8 + Math.random() * 2;
+      const totalRotation = (numberOfSpins * 360) + (360 - targetAngle);
+      
+      // Debug: afficher les informations de calcul
+      console.log('Spin calculation:', {
+        prizeWon: result.prize_won?.name || 'Pas de prix',
+        prizeIndex,
+        segmentAngle,
+        targetAngle,
+        numberOfSpins,
+        totalRotation,
+        currentRotation: wheelRotation,
+        finalRotation: wheelRotation + totalRotation,
+        expectedFinalAngle: (wheelRotation + totalRotation) % 360
+      });
+      
+      setFinalRotation(wheelRotation + totalRotation);
+      
+      // Calculer la durée de l'animation basée sur le nombre de tours
+      const calculatedDuration = Math.max(4000, numberOfSpins * 500); // Minimum 4s, 500ms par tour
+      setAnimationDuration(calculatedDuration);
+      
+      // Attendre la fin de l'animation
+      setTimeout(async () => {
+        setIsSpinning(false);
+        
+        // Mettre à jour le solde
+        const updatedBalance = await MemberService.getSpinBalance();
+        setBalance(updatedBalance);
+        
+        if (result.prize_won) {
+          setWonPrize(result.prize_won);
+          setShowResult(true);
+          
+          // Afficher le message de félicitations immédiatement et le garder plus longtemps
+          addToast({
+            type: 'success',
+            title: '🎉 Félicitations !',
+            message: `Vous avez gagné : ${result.prize_won.name}`,
+            duration: 6000 // 6 secondes pour bien voir le message
+          });
+          
+          // Pas d'autre message pour les gains - juste les félicitations !
+        } else {
+          // Attendre un peu avant d'afficher le message "pas de chance" pour ne pas interférer
+          setTimeout(() => {
+            addToast({
+              type: 'info',
+              title: 'Pas de chance cette fois',
+              message: 'Réessayez encore !',
+              duration: 4000
+            });
+          }, 1000); // Délai plus long pour laisser la place aux félicitations
+        }
+      }, calculatedDuration);
+      
+    } catch (err: any) {
+      console.error('Error spinning wheel:', err);
+      setIsSpinning(false);
+      addToast({
+        type: 'error',
+        title: 'Erreur',
+        message: 'Impossible de tourner la roue'
+      });
+    }
+  };
+
+  // Créer les segments de la roue avec SVG
+  const createWheelSegments = () => {
+    if (!activePrizes || activePrizes.length === 0) return null;
+    
+    const segments: React.ReactElement[] = [];
+    const segmentAngle = 360 / activePrizes.length;
+    const radius = 150;
+    const centerX = 160;
+    const centerY = 160;
+
+    activePrizes.forEach((prize, index) => {
+      const startAngle = (index * segmentAngle - 90) * (Math.PI / 180);
+      const endAngle = ((index + 1) * segmentAngle - 90) * (Math.PI / 180);
+      
+      const x1 = centerX + radius * Math.cos(startAngle);
+      const y1 = centerY + radius * Math.sin(startAngle);
+      const x2 = centerX + radius * Math.cos(endAngle);
+      const y2 = centerY + radius * Math.sin(endAngle);
+      
+      const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z`;
+      
+      // Position du texte
+      const textAngle = (startAngle + endAngle) / 2;
+      const textRadius = radius * 0.7;
+      const textX = centerX + textRadius * Math.cos(textAngle);
+      const textY = centerY + textRadius * Math.sin(textAngle);
+      const textRotation = ((index * segmentAngle) + (segmentAngle / 2));
+
+      segments.push(
+        <g key={prize.id}>
+          <path
+            d={pathData}
+            fill={colors[index % colors.length]}
+            stroke="#ffffff"
+            strokeWidth="2"
+          />
+          
+          <text
+            x={textX}
+            y={textY}
+            fill="white"
+            fontSize="11"
+            fontWeight="bold"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            transform={`rotate(${textRotation}, ${textX}, ${textY})`}
+            style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)', pointerEvents: 'none' }}
+          >
+            {prize.name}
+          </text>
+        </g>
+      );
+    });
+
+    return segments;
+  };
+
+  useEffect(() => {
+    if (isSpinning) {
+      setWheelRotation(finalRotation);
+    }
+  }, [finalRotation, isSpinning]);
+
+  const handleGoBack = () => {
+    router.back();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex justify-center items-center px-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-orange-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement de la roue...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex justify-center items-center px-4">
+        <div className="text-center max-w-md mx-auto">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur</h2>
+          <p className="text-red-600 mb-6">{error}</p>
+          <div className="space-y-3">
+            <Button 
+              onClick={loadData}
+              variant="gradient"
+              className="w-full"
+            >
+              Réessayer
+            </Button>
+            <Button 
+              onClick={handleGoBack}
+              variant="ghost"
+              className="w-full"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+      <div className="max-w-lg mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        
+        {/* En-tête */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3"
+        >
+          <Button
+            onClick={handleGoBack}
+            variant="ghost"
+            size="sm"
+            className="p-2"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Roue de la Fortune</h1>
+            {activeCampaign && (
+              <p className="text-gray-600 text-sm">{activeCampaign.name}</p>
+            )}
+          </div>
+          {/* Bouton de test temporaire pour vérifier les notifications */}
+          <Button
+            onClick={() => addToast({
+              type: 'success',
+              title: '🎉 Test Notification',
+              message: 'Les notifications fonctionnent dans WheelPage !',
+              duration: 5000
+            })}
+            variant="outline"
+            size="sm"
+            className="p-2"
+          >
+            Test Toast
+          </Button>
+        </motion.div>
+
+        {/* Informations sur les spins */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="bg-white shadow-lg border-0">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 sm:p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg">
+                    <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600">Spins disponibles</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-orange-600">
+                      {balance?.available_spins ? balance.available_spins : 0}
+                    </p>
+                    {balance && balance.available_spins > 0 && balance.available_spins < 1 && (
+                      <p className="text-xs text-orange-500">
+                        Contribution partielle
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={handleSpin}
+                  disabled={isSpinning || (balance?.available_spins || 0) <= 0}
+                  variant="gradient"
+                  className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold"
+                >
+                  {isSpinning ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                      Tourner
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {balance && balance.available_spins <= 0 && (
+                <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs sm:text-sm text-yellow-700 text-center">
+                    ⚠️ Vous n'avez pas de spins. Faites un paiement pour en gagner !
+                  </p>
+                </div>
+              )}
+              
+              {balance && balance.available_spins > 0 && balance.available_spins < 1 && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs sm:text-sm text-blue-700 text-center">
+                    💡 Vous avez une contribution partielle. Continuez à contribuer pour gagner un spin complet !
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Roue de la fortune */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="bg-white shadow-xl border-0 overflow-hidden">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex justify-center items-center">
+                <div className="relative w-full max-w-[320px] aspect-square">
+                  
+                  {/* Indicateur en haut */}
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-3 z-20">
+                    <motion.div
+                      animate={{ y: isSpinning ? [0, 8, 0] : 0 }}
+                      transition={{ duration: 0.3, repeat: isSpinning ? Infinity : 0 }}
+                    >
+                      <div className="w-0 h-0 border-l-[16px] border-r-[16px] border-b-[24px] border-l-transparent border-r-transparent border-b-orange-500 drop-shadow-lg"></div>
+                    </motion.div>
+                  </div>
+
+                  {/* Cercle extérieur décoratif */}
+                  <div className="absolute inset-0 rounded-full border-4 border-orange-200"></div>
+                  
+                  {/* La roue */}
+                  <div className="absolute inset-0 p-2">
+                    <motion.div
+                      className="w-full h-full rounded-full relative overflow-hidden shadow-2xl"
+                      animate={{ 
+                        rotate: wheelRotation
+                      }}
+                      transition={{ 
+                        duration: isSpinning ? animationDuration / 1000 : 0,
+                        ease: isSpinning ? [0.17, 0.67, 0.12, 0.99] : "linear"
+                      }}
+                    >
+                      <svg
+                        viewBox="0 0 320 320"
+                        className="w-full h-full"
+                        style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.15))' }}
+                      >
+                        {/* Segments */}
+                        {createWheelSegments()}
+                        
+                        {/* Centre blanc */}
+                        <circle
+                          cx="160"
+                          cy="160"
+                          r="35"
+                          fill="white"
+                          stroke="#e5e7eb"
+                          strokeWidth="3"
+                        />
+                        
+                        {/* Centre orange */}
+                        <circle
+                          cx="160"
+                          cy="160"
+                          r="25"
+                          fill="url(#orangeGradient)"
+                        />
+                        
+                        <defs>
+                          <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#f97316" />
+                            <stop offset="100%" stopColor="#ea580c" />
+                          </linearGradient>
+                        </defs>
+                        
+                        {/* Étoile */}
+                        <text
+                          x="160"
+                          y="160"
+                          fill="white"
+                          fontSize="20"
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontWeight="bold"
+                        >
+                          ★
+                        </text>
+                      </svg>
+                    </motion.div>
+                  </div>
+                  
+                  {/* Points décoratifs */}
+                  {!isSpinning && [0, 90, 180, 270].map((angle, i) => (
+                    <div
+                      key={i}
+                      className="absolute w-3 h-3 bg-orange-400 rounded-full"
+                      style={{
+                        top: '50%',
+                        left: '50%',
+                        transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-165px)`
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Indicateur pendant le spin */}
+              <AnimatePresence>
+                {isSpinning && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mt-4 text-center"
+                  >
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 rounded-full">
+                      <Target className="w-4 h-4 text-orange-600 animate-spin" />
+                      <span className="text-orange-700 font-medium text-sm">
+                        La roue tourne...
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Prix disponibles */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="bg-white shadow-lg border-0">
+            <CardContent className="p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center justify-center gap-2">
+                <Gift className="w-5 h-5 text-orange-600" />
+                Prix Disponibles
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                {activePrizes.slice(0, 6).map((prize, index) => (
+                  <div
+                    key={prize.id}
+                    className="rounded-lg p-3 text-center transition-transform hover:scale-105"
+                    style={{ backgroundColor: `${colors[index % colors.length]}15` }}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center"
+                      style={{ backgroundColor: colors[index % colors.length] }}
+                    >
+                      <Gift className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-900">{prize.name}</p>
+                    {prize.description && (
+                      <p className="text-xs text-gray-600 mt-1">{prize.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Modal de résultat */}
+        <AnimatePresence>
+          {showResult && wonPrize && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowResult(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0, y: 50 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.8, opacity: 0, y: 50 }}
+                transition={{ type: "spring", damping: 20 }}
+                className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full mx-4 text-center relative overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Confettis */}
+                {[...Array(15)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-2 h-2 rounded-full"
+                    style={{ 
+                      backgroundColor: colors[i % colors.length],
+                      top: '50%',
+                      left: '50%'
+                    }}
+                    animate={{
+                      x: [0, (Math.random() - 0.5) * 300],
+                      y: [0, (Math.random() - 0.5) * 300],
+                      opacity: [1, 0],
+                      scale: [1, 0]
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      delay: i * 0.05
+                    }}
+                  />
+                ))}
+                
+                <motion.div
+                  animate={{ 
+                    rotate: [0, -10, 10, -10, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 0.5 }}
+                  className="mb-4 sm:mb-6"
+                >
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center mx-auto shadow-xl">
+                    <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+                  </div>
+                </motion.div>
+                
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                  🎉 Félicitations !
+                </h2>
+                <p className="text-gray-600 mb-4">Vous avez gagné :</p>
+                
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-4 sm:p-6 mb-6 border-2 border-orange-200">
+                  <h3 className="text-xl sm:text-2xl font-bold text-orange-600 mb-2">
+                    {wonPrize.name}
+                  </h3>
+                  {wonPrize.description && (
+                    <p className="text-gray-600 text-sm mb-2">{wonPrize.description}</p>
+                  )}
+                  {wonPrize.value && (
+                    <div className="inline-block px-4 py-2 bg-green-500 rounded-full mt-2">
+                      <p className="text-white font-bold">
+                        {wonPrize.value.toLocaleString()} FCFA
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setShowResult(false)}
+                    variant="gradient"
+                    className="w-full"
+                  >
+                    Continuer
+                  </Button>
+                  <Button
+                    onClick={handleGoBack}
+                    variant="ghost"
+                    className="w-full"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Retour au Dashboard
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+export default WheelPage;

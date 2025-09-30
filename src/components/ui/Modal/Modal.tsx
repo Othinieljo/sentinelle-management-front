@@ -79,7 +79,7 @@ const Modal: React.FC<ModalProps> = ({
           <motion.div
             ref={modalRef}
             className={cn(
-              'relative bg-white rounded-xl shadow-xl w-full',
+              'relative bg-white rounded-xl shadow-xl w-full max-h-[90vh] flex flex-col',
               sizeClasses[size],
               className
             )}
@@ -120,7 +120,7 @@ const ModalHeader: React.FC<BaseComponentProps> = ({ className, children, ...pro
 
 const ModalBody: React.FC<BaseComponentProps> = ({ className, children, ...props }) => (
   <motion.div
-    className={cn('px-6 py-4', className)}
+    className={cn('px-6 py-4 flex-1 overflow-y-auto', className)}
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.2, delay: 0.2 }}

@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Users, TrendingUp, Settings, LogOut } from 'lucide-react';
+import { Shield, Users, TrendingUp, Settings, LogOut, User } from 'lucide-react';
 import { Card, CardContent } from '../ui';
 import { useAuthStore } from '../../stores/auth';
+import { useRouter } from 'next/navigation';
 
 interface AdminHeaderProps {
   className?: string;
@@ -12,11 +13,16 @@ interface AdminHeaderProps {
 
 const AdminHeader: React.FC<AdminHeaderProps> = ({ className }) => {
   const { user, logout } = useAuthStore();
+  const router = useRouter();
 
   if (!user) return null;
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleGoToMemberArea = () => {
+    router.push('/member');
   };
 
   return (
@@ -86,6 +92,16 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ className }) => {
 
             {/* Actions */}
             <div className="flex items-center space-x-2">
+              <motion.button
+                onClick={handleGoToMemberArea}
+                className="flex items-center gap-2 px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-xl transition-all duration-200 border border-white border-opacity-30"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title="Accéder à mon espace membre"
+              >
+                <User size={20} />
+                <span className="text-sm font-medium">Espace Membre</span>
+              </motion.button>
               <motion.button
                 className="p-3 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200"
                 whileHover={{ scale: 1.05 }}
