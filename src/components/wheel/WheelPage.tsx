@@ -137,13 +137,13 @@ const WheelPage: React.FC = () => {
     // Pour aligner le centre du segment avec l'indicateur :
     // On doit faire tourner la roue de (-segmentCenterDeg)
     // Le négatif car on tourne la roue, pas l'indicateur
-    let targetAngleDeg = -segmentCenterDeg;
+    const targetAngleDeg = -segmentCenterDeg;
     
     // Normaliser l'angle actuel entre 0 et 360
     const currentNormalized = ((rotation % 360) + 360) % 360;
     
     // Normaliser l'angle cible entre 0 et 360
-    let normalizedTarget = ((targetAngleDeg % 360) + 360) % 360;
+    const normalizedTarget = ((targetAngleDeg % 360) + 360) % 360;
     
     // Calculer la différence la plus courte
     let angleDifference = normalizedTarget - currentNormalized;

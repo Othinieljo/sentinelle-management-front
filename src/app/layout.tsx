@@ -11,8 +11,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "SENTINELLE - Gestion de Communauté",
-  description: "Plateforme de gestion de communauté avec système de cotisations et roue de la fortune",
+  title: "SENTINELLE",
+  description: "Plateforme de gestion - SENTINELLE",
   keywords: ["communauté", "cotisations", "roue de la fortune", "gestion", "SENTINELLE"],
   authors: [{ name: "SENTINELLE Team" }],
 };
