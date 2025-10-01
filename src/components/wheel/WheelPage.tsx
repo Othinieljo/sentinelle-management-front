@@ -124,33 +124,63 @@ const WheelPage: React.FC = () => {
     const prizeIndex = activePrizes.findIndex(p => p.name === prizeName);
     if (prizeIndex === -1) return rotation + 360 * 8; // Rotation par défaut
 
-    const segmentAngle = 360 / activePrizes.length;
+    // Calculer l'angle exact du centre du segment gagné
+    // D3.js commence à 0° (12h) et tourne dans le sens horaire
+    const segmentAngle = (2 * Math.PI) / activePrizes.length;
+    const segmentStartAngle = prizeIndex * segmentAngle;
+    const segmentCenterAngle = segmentStartAngle + (segmentAngle / 2);
     
-    // Le pointeur est en haut (0°), on veut que le centre du segment gagné soit en haut
-    // Chaque segment commence à prizeIndex * segmentAngle
-    // Le centre du segment est à prizeIndex * segmentAngle + segmentAngle/2
-    const segmentCenterAngle = prizeIndex * segmentAngle + (segmentAngle / 2);
+    // Convertir en degrés (0° = haut, sens horaire)
+    const segmentCenterDeg = (segmentCenterAngle * 180 / Math.PI);
     
-    // Pour amener le centre du segment en haut (0°), on doit tourner de 360 - segmentCenterAngle
-    const targetAngle = 360 - segmentCenterAngle;
+    // L'indicateur pointe vers le haut (0°)
+    // Pour aligner le centre du segment avec l'indicateur :
+    // On doit faire tourner la roue de (-segmentCenterDeg)
+    // Le négatif car on tourne la roue, pas l'indicateur
+    let targetAngleDeg = -segmentCenterDeg;
     
-    // Ajouter plusieurs tours complets pour l'effet dramatique
-    const fullRotations = 8 + Math.random() * 2;
-    const totalRotation = (fullRotations * 360) + targetAngle;
+    // Normaliser l'angle actuel entre 0 et 360
+    const currentNormalized = ((rotation % 360) + 360) % 360;
     
-    console.log('🎯 Calcul de rotation:', {
-      prizeName,
-      prizeIndex,
-      segmentAngle,
-      segmentCenterAngle,
-      targetAngle,
-      fullRotations,
-      totalRotation,
-      currentRotation: rotation,
-      finalRotation: rotation + totalRotation
-    });
+    // Normaliser l'angle cible entre 0 et 360
+    let normalizedTarget = ((targetAngleDeg % 360) + 360) % 360;
     
-    return rotation + totalRotation;
+    // Calculer la différence la plus courte
+    let angleDifference = normalizedTarget - currentNormalized;
+    
+    // Si la différence est négative, ajouter 360 pour aller dans le sens positif
+    if (angleDifference < 0) {
+      angleDifference += 360;
+    }
+    
+    // Ajouter plusieurs tours complets (8 à 10 tours)
+    const numberOfFullRotations = 8 + Math.floor(Math.random() * 2);
+    const totalRotation = rotation + (numberOfFullRotations * 360) + angleDifference;
+    
+    // Vérification finale : calculer où on va atterrir
+    const finalPosition = ((totalRotation % 360) + 360) % 360;
+    const expectedPosition = ((360 - segmentCenterDeg) % 360 + 360) % 360;
+    
+    // console.log('🎯 Calcul de rotation précis:', {
+    //   prizeName,
+    //   prizeIndex,
+    //   totalPrizes: activePrizes.length,
+    //   segmentAngleRad: segmentAngle,
+    //   segmentAngleDeg: segmentAngle * 180 / Math.PI,
+    //   segmentStartDeg: segmentStartAngle * 180 / Math.PI,
+    //   segmentCenterDeg,
+    //   currentRotation: rotation,
+    //   currentNormalized,
+    //   normalizedTarget,
+    //   angleDifference,
+    //   numberOfFullRotations,
+    //   totalRotation,
+    //   finalPosition,
+    //   expectedPosition,
+    //   difference: Math.abs(finalPosition - expectedPosition)
+    // });
+    
+    return totalRotation;
   }, [activePrizes, rotation]);
 
   // Gérer le tour de roue
@@ -178,19 +208,19 @@ const WheelPage: React.FC = () => {
         user_agent: navigator.userAgent
       });
       
-      console.log('🎰 Résultat du backend:', result);
+      // console.log('🎰 Résultat du backend:', result);
       
       // 2. Calculer la rotation cible basée sur le prix gagné
       let targetPrizeName = '';
       
-      if (result.prize_won) {
-        targetPrizeName = result.prize_won.name;
-        console.log('🎁 Prix gagné:', targetPrizeName);
+      if (result.prize) {
+        targetPrizeName = result.prize.name;
+        // console.log('🎁 Prix gagné:', targetPrizeName);
       } else {
         // Pas de prix - choisir un segment aléatoire
         const randomIndex = Math.floor(Math.random() * activePrizes.length);
         targetPrizeName = activePrizes[randomIndex]?.name || '';
-        console.log('❌ Pas de prix - segment aléatoire:', targetPrizeName);
+        // console.log('❌ Pas de prix - segment aléatoire:', targetPrizeName);
       }
       
       const finalRotation = calculateTargetRotation(targetPrizeName);
@@ -199,12 +229,13 @@ const WheelPage: React.FC = () => {
       await controls.start({
         rotate: finalRotation,
         transition: {
-          duration: 6,
-          ease: [0.17, 0.67, 0.12, 0.99], // Easing professionnel
+          duration: 7,
+          ease: [0.25, 0.1, 0.25, 1], // Cubic bezier pour un ralentissement progressif
         }
       });
       
-      setRotation(finalRotation % 360); // Garder l'angle final normalisé
+      // Mettre à jour la rotation actuelle pour le prochain spin
+      setRotation(finalRotation);
       
       // 4. Traiter le résultat
       setIsSpinning(false);
@@ -213,14 +244,14 @@ const WheelPage: React.FC = () => {
       const updatedBalance = await MemberService.getSpinBalance();
       setBalance(updatedBalance);
       
-      if (result.prize_won) {
-        setWonPrize(result.prize_won);
+      if (result.prize) {
+        setWonPrize(result.prize);
         setShowResult(true);
         
         addToast({
           type: 'success',
           title: '🎉 Félicitations !',
-          message: `Vous avez gagné : ${result.prize_won.name}`,
+          message: `Vous avez gagné : ${result.prize.name}`,
           duration: 6000
         });
       } else {
@@ -432,10 +463,35 @@ const WheelPage: React.FC = () => {
                           .endAngle(segment.endAngle);
 
                         const pathData = arc(null as any);
-                        const centroid = arc.centroid(null as any);
                         
-                        // Calculer l'angle pour le texte
-                        const angle = ((segment.startAngle + segment.endAngle) / 2) * (180 / Math.PI);
+                        // Calculer l'angle moyen du segment
+                        const midAngle = (segment.startAngle + segment.endAngle) / 2;
+                        
+                        // Position radiale pour le texte (70% du rayon)
+                        const textRadius = radius * 0.7;
+                        const textX = textRadius * Math.cos(midAngle - Math.PI / 2);
+                        const textY = textRadius * Math.sin(midAngle - Math.PI / 2);
+                        
+                        // Angle de rotation du texte (perpendiculaire au rayon)
+                        let textAngle = (midAngle * 180 / Math.PI) - 90;
+                        
+                        // Inverser le texte s'il est à l'envers (entre 90° et 270°)
+                        if (textAngle > 90 && textAngle < 270) {
+                          textAngle += 180;
+                        }
+                        
+                        // Adapter la taille du texte selon le nombre de segments
+                        const numSegments = segments.length;
+                        let fontSize = 12;
+                        if (numSegments > 8) fontSize = 10;
+                        if (numSegments > 12) fontSize = 8;
+                        if (numSegments > 16) fontSize = 7;
+                        
+                        // Tronquer le texte si trop long
+                        const maxLength = numSegments > 8 ? 8 : 12;
+                        const displayName = segment.name.length > maxLength 
+                          ? segment.name.substring(0, maxLength) + '...' 
+                          : segment.name;
 
                         return (
                           <g key={segment.id} transform={`translate(${centerX}, ${centerY})`}>
@@ -448,31 +504,38 @@ const WheelPage: React.FC = () => {
                               className="transition-opacity duration-300"
                             />
                             
-                            {/* Texte du segment */}
+                            {/* Texte du segment - orienté radialement */}
                             <text
-                              x={centroid[0]}
-                              y={centroid[1]}
+                              x={textX}
+                              y={textY}
                               fill="white"
-                              fontSize="12"
+                              fontSize={fontSize}
                               fontWeight="700"
                               textAnchor="middle"
                               dominantBaseline="middle"
-                              transform={`rotate(${angle}, ${centroid[0]}, ${centroid[1]})`}
+                              transform={`rotate(${textAngle}, ${textX}, ${textY})`}
                               style={{ 
                                 textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
                                 pointerEvents: 'none',
                                 userSelect: 'none'
                               }}
                             >
-                              {segment.name}
+                              {displayName}
                             </text>
                           </g>
                         );
                       })}
                     </g>
 
-                    {/* Centre de la roue */}
-                    <g transform={`translate(${centerX}, ${centerY})`}>
+                    {/* Centre de la roue - Cliquable */}
+                    <g 
+                      transform={`translate(${centerX}, ${centerY})`}
+                      onClick={handleSpin}
+                      style={{ 
+                        cursor: isSpinning || (balance?.available_spins || 0) <= 0 ? 'not-allowed' : 'pointer'
+                      }}
+                      className="transition-transform hover:scale-110"
+                    >
                       {/* Cercle blanc extérieur */}
                       <circle r="45" fill="white" stroke="#e5e7eb" strokeWidth="3"/>
                       
@@ -486,6 +549,7 @@ const WheelPage: React.FC = () => {
                         fontWeight="bold"
                         textAnchor="middle"
                         dominantBaseline="middle"
+                        style={{ pointerEvents: 'none' }}
                       >
                         ★
                       </text>

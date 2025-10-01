@@ -94,7 +94,7 @@ export interface SpinRequest {
 
 export interface SpinResult {
   spin_id: string;
-  prize_won: {
+  prize: {
     id: string;
     name: string;
     description: string;

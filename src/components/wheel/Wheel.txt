@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+// @ts-expect-error - d3 types are not installed; we import the JS bundle directly
+import * as d3 from 'd3';
 import { 
   ArrowLeft,
   Gift, 
   Zap,
   Trophy,
   Sparkles,
-  AlertCircle,
-  Target
+  AlertCircle
 } from 'lucide-react';
 import { MemberService, SpinBalance } from '@/lib/services/memberService';
 import { Button } from '@/components/ui/Button/Button';
@@ -17,28 +18,69 @@ import { Card, CardContent } from '@/components/ui/Card/Card';
 import { useToastContext } from '@/components/ui/Toast/ToastProvider';
 import { useRouter } from 'next/navigation';
 
+// Palette de couleurs premium orange/rouge
+const COLORS = ['#f97316', '#ea580c', '#fb923c', '#c2410c'];
+
+interface WheelSegment {
+  id: string;
+  name: string;
+  startAngle: number;
+  endAngle: number;
+  color: string;
+  value?: number;
+  description?: string;
+}
+
 const WheelPage: React.FC = () => {
   const { addToast } = useToastContext();
   const router = useRouter();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const controls = useAnimation();
   
   // États
   const [balance, setBalance] = useState<SpinBalance | null>(null);
   const [activePrizes, setActivePrizes] = useState<any[]>([]);
+  const [segments, setSegments] = useState<WheelSegment[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [wheelRotation, setWheelRotation] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [wonPrize, setWonPrize] = useState<any | null>(null);
   const [activeCampaign, setActiveCampaign] = useState<any | null>(null);
-  const [finalRotation, setFinalRotation] = useState(0);
-  const [animationDuration, setAnimationDuration] = useState(0);
+  const [rotation, setRotation] = useState(0);
 
-  // Palette de couleurs pour les segments
-  const colors = [
-    '#f97316', '#ea580c', '#fb923c', '#c2410c',
-    '#f97316', '#ea580c', '#fb923c', '#c2410c'
-  ];
+  // Dimensions de la roue
+  const wheelSize = 340;
+  const centerX = wheelSize / 2;
+  const centerY = wheelSize / 2;
+  const radius = wheelSize / 2 - 10;
+
+  // Générer les segments avec D3.js
+  const generateSegments = useCallback((prizes: any[]) => {
+    if (!prizes || prizes.length === 0) return [];
+
+    const pie = d3.pie<any>()
+      .value(() => 1)
+      .sort(null);
+
+    const arc = d3.arc()
+      .innerRadius(0)
+      .outerRadius(radius);
+
+    const arcs = pie(prizes);
+
+    return arcs.map((arcData: any, index: number) => ({
+      id: prizes[index].id,
+      name: prizes[index].name,
+      startAngle: arcData.startAngle,
+      endAngle: arcData.endAngle,
+      color: COLORS[index % COLORS.length],
+      value: prizes[index].value,
+      description: prizes[index].description,
+      path: arc(arcData as any) || '',
+      centroid: arc.centroid(arcData as any)
+    }));
+  }, [radius]);
 
   // Charger les données initiales
   const loadData = useCallback(async () => {
@@ -55,6 +97,11 @@ const WheelPage: React.FC = () => {
       setBalance(balanceData);
       setActivePrizes(prizesData);
       setActiveCampaign(campaignData);
+      
+      // Générer les segments avec D3
+      const generatedSegments = generateSegments(prizesData);
+      setSegments(generatedSegments);
+      
     } catch (err: any) {
       console.error('Error loading wheel data:', err);
       setError('Erreur lors du chargement des données');
@@ -66,11 +113,61 @@ const WheelPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, generateSegments]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Calculer l'angle final basé sur le prix gagné
+  const calculateTargetRotation = useCallback((prizeName: string) => {
+    const prizeIndex = activePrizes.findIndex(p => p.name === prizeName);
+    if (prizeIndex === -1) return rotation + 360 * 8; // Rotation par défaut
+
+    const segmentAngle = 360 / activePrizes.length;
+    
+    // Les segments D3 commencent à 0 (haut) et vont dans le sens horaire
+    // L'indicateur pointe vers le haut (0°)
+    // Angle de début du segment gagné (en degrés)
+    const segmentStartAngle = prizeIndex * segmentAngle;
+    
+    // Centre du segment gagné
+    const segmentCenterAngle = segmentStartAngle + (segmentAngle / 2);
+    
+    // Normaliser la rotation actuelle entre 0 et 360
+    const currentNormalizedRotation = ((rotation % 360) + 360) % 360;
+    
+    // Pour que l'indicateur (en haut) pointe vers le centre du segment:
+    // On doit tourner la roue pour amener le segment sous l'indicateur
+    // Comme la roue tourne dans le sens horaire et l'indicateur est fixe en haut,
+    // on calcule l'angle nécessaire
+    let targetAngle = 360 - segmentCenterAngle;
+    
+    // Ajuster pour partir de la rotation actuelle normalisée
+    if (targetAngle < currentNormalizedRotation) {
+      targetAngle += 360;
+    }
+    
+    // Ajouter plusieurs tours complets pour l'effet (8-10 tours)
+    const fullRotations = 8 + Math.random() * 2;
+    const baseRotation = Math.floor(rotation / 360) * 360; // Tours complets déjà effectués
+    const totalRotation = baseRotation + (fullRotations * 360) + targetAngle;
+    
+    console.log('🎯 Calcul de rotation:', {
+      prizeName,
+      prizeIndex,
+      segmentAngle,
+      segmentStartAngle,
+      segmentCenterAngle,
+      currentRotation: rotation,
+      currentNormalizedRotation,
+      targetAngle,
+      fullRotations,
+      totalRotation
+    });
+    
+    return totalRotation;
+  }, [activePrizes, rotation]);
 
   // Gérer le tour de roue
   const handleSpin = async () => {
@@ -83,12 +180,7 @@ const WheelPage: React.FC = () => {
       return;
     }
 
-    if (!activeCampaign) {
-      addToast({
-        type: 'error',
-        title: 'Erreur',
-        message: 'Aucune campagne active trouvée'
-      });
+    if (!activeCampaign || isSpinning || segments.length === 0) {
       return;
     }
 
@@ -96,83 +188,68 @@ const WheelPage: React.FC = () => {
     setShowResult(false);
     
     try {
+      // 1. Appeler l'API pour obtenir le résultat
       const result = await MemberService.spinWheel({
         campaign_id: activeCampaign.id,
         user_agent: navigator.userAgent
       });
       
-      // Calculer l'angle du prix gagné
-      let prizeIndex = 0;
-      if (result.prize_won) {
-        prizeIndex = activePrizes.findIndex(p => p.id === result.prize_won!.id);
-        if (prizeIndex === -1) prizeIndex = 0;
+      console.log('🎰 Résultat du backend:', result);
+      
+      // 2. Calculer la rotation cible basée sur le prix gagné
+      let targetPrizeName = '';
+      
+      if (result.prize) {
+        targetPrizeName = result.prize.name;
+        console.log('🎁 Prix gagné:', targetPrizeName);
       } else {
-        // Si pas de prix gagné, choisir un segment aléatoire pour l'effet visuel
-        prizeIndex = Math.floor(Math.random() * activePrizes.length);
+        // Pas de prix - choisir un segment aléatoire
+        const randomIndex = Math.floor(Math.random() * activePrizes.length);
+        targetPrizeName = activePrizes[randomIndex]?.name || '';
+        console.log('❌ Pas de prix - segment aléatoire:', targetPrizeName);
       }
       
-      const segmentAngle = 360 / activePrizes.length;
+      const finalRotation = calculateTargetRotation(targetPrizeName);
       
-      // Calculer l'angle cible pour que le pointeur soit au centre du segment gagné
-      // Le pointeur est en haut (0°), donc on veut que le segment gagné soit en haut
-      const targetAngle = prizeIndex * segmentAngle;
-      
-      // Ajouter plusieurs tours complets pour l'effet dramatique
-      const numberOfSpins = 8 + Math.random() * 2;
-      const totalRotation = (numberOfSpins * 360) + (360 - targetAngle);
-      
-      // Debug: afficher les informations de calcul
-      console.log('Spin calculation:', {
-        prizeWon: result.prize_won?.name || 'Pas de prix',
-        prizeIndex,
-        segmentAngle,
-        targetAngle,
-        numberOfSpins,
-        totalRotation,
-        currentRotation: wheelRotation,
-        finalRotation: wheelRotation + totalRotation,
-        expectedFinalAngle: (wheelRotation + totalRotation) % 360
+      // 3. Animation avec Framer Motion
+      await controls.start({
+        rotate: finalRotation,
+        transition: {
+          duration: 6,
+          ease: [0.17, 0.67, 0.12, 0.99], // Easing professionnel
+        }
       });
       
-      setFinalRotation(wheelRotation + totalRotation);
+      // Mettre à jour la rotation actuelle pour le prochain spin
+      setRotation(finalRotation);
       
-      // Calculer la durée de l'animation basée sur le nombre de tours
-      const calculatedDuration = Math.max(4000, numberOfSpins * 500); // Minimum 4s, 500ms par tour
-      setAnimationDuration(calculatedDuration);
+      // 4. Traiter le résultat
+      setIsSpinning(false);
       
-      // Attendre la fin de l'animation
-      setTimeout(async () => {
-        setIsSpinning(false);
+      // Mettre à jour le solde
+      const updatedBalance = await MemberService.getSpinBalance();
+      setBalance(updatedBalance);
+      
+      if (result.prize) {
+        setWonPrize(result.prize);
+        setShowResult(true);
         
-        // Mettre à jour le solde
-        const updatedBalance = await MemberService.getSpinBalance();
-        setBalance(updatedBalance);
-        
-        if (result.prize_won) {
-          setWonPrize(result.prize_won);
-          setShowResult(true);
-          
-          // Afficher le message de félicitations immédiatement et le garder plus longtemps
+        addToast({
+          type: 'success',
+          title: '🎉 Félicitations !',
+          message: `Vous avez gagné : ${result.prize.name}`,
+          duration: 6000
+        });
+      } else {
+        setTimeout(() => {
           addToast({
-            type: 'success',
-            title: '🎉 Félicitations !',
-            message: `Vous avez gagné : ${result.prize_won.name}`,
-            duration: 6000 // 6 secondes pour bien voir le message
+            type: 'info',
+            title: 'Pas de chance cette fois',
+            message: 'Réessayez encore !',
+            duration: 4000
           });
-          
-          // Pas d'autre message pour les gains - juste les félicitations !
-        } else {
-          // Attendre un peu avant d'afficher le message "pas de chance" pour ne pas interférer
-          setTimeout(() => {
-            addToast({
-              type: 'info',
-              title: 'Pas de chance cette fois',
-              message: 'Réessayez encore !',
-              duration: 4000
-            });
-          }, 1000); // Délai plus long pour laisser la place aux félicitations
-        }
-      }, calculatedDuration);
+        }, 1000);
+      }
       
     } catch (err: any) {
       console.error('Error spinning wheel:', err);
@@ -184,69 +261,6 @@ const WheelPage: React.FC = () => {
       });
     }
   };
-
-  // Créer les segments de la roue avec SVG
-  const createWheelSegments = () => {
-    if (!activePrizes || activePrizes.length === 0) return null;
-    
-    const segments: React.ReactElement[] = [];
-    const segmentAngle = 360 / activePrizes.length;
-    const radius = 150;
-    const centerX = 160;
-    const centerY = 160;
-
-    activePrizes.forEach((prize, index) => {
-      const startAngle = (index * segmentAngle - 90) * (Math.PI / 180);
-      const endAngle = ((index + 1) * segmentAngle - 90) * (Math.PI / 180);
-      
-      const x1 = centerX + radius * Math.cos(startAngle);
-      const y1 = centerY + radius * Math.sin(startAngle);
-      const x2 = centerX + radius * Math.cos(endAngle);
-      const y2 = centerY + radius * Math.sin(endAngle);
-      
-      const pathData = `M ${centerX} ${centerY} L ${x1} ${y1} A ${radius} ${radius} 0 0 1 ${x2} ${y2} Z`;
-      
-      // Position du texte
-      const textAngle = (startAngle + endAngle) / 2;
-      const textRadius = radius * 0.7;
-      const textX = centerX + textRadius * Math.cos(textAngle);
-      const textY = centerY + textRadius * Math.sin(textAngle);
-      const textRotation = ((index * segmentAngle) + (segmentAngle / 2));
-
-      segments.push(
-        <g key={prize.id}>
-          <path
-            d={pathData}
-            fill={colors[index % colors.length]}
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-          
-          <text
-            x={textX}
-            y={textY}
-            fill="white"
-            fontSize="11"
-            fontWeight="bold"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            transform={`rotate(${textRotation}, ${textX}, ${textY})`}
-            style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)', pointerEvents: 'none' }}
-          >
-            {prize.name}
-          </text>
-        </g>
-      );
-    });
-
-    return segments;
-  };
-
-  useEffect(() => {
-    if (isSpinning) {
-      setWheelRotation(finalRotation);
-    }
-  }, [finalRotation, isSpinning]);
 
   const handleGoBack = () => {
     router.back();
@@ -271,18 +285,10 @@ const WheelPage: React.FC = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur</h2>
           <p className="text-red-600 mb-6">{error}</p>
           <div className="space-y-3">
-            <Button 
-              onClick={loadData}
-              variant="gradient"
-              className="w-full"
-            >
+            <Button onClick={loadData} variant="gradient" className="w-full">
               Réessayer
             </Button>
-            <Button 
-              onClick={handleGoBack}
-              variant="ghost"
-              className="w-full"
-            >
+            <Button onClick={handleGoBack} variant="ghost" className="w-full">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
@@ -302,12 +308,7 @@ const WheelPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-3"
         >
-          <Button
-            onClick={handleGoBack}
-            variant="ghost"
-            size="sm"
-            className="p-2"
-          >
+          <Button onClick={handleGoBack} variant="ghost" size="sm" className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1">
@@ -316,20 +317,6 @@ const WheelPage: React.FC = () => {
               <p className="text-gray-600 text-sm">{activeCampaign.name}</p>
             )}
           </div>
-          {/* Bouton de test temporaire pour vérifier les notifications */}
-          <Button
-            onClick={() => addToast({
-              type: 'success',
-              title: '🎉 Test Notification',
-              message: 'Les notifications fonctionnent dans WheelPage !',
-              duration: 5000
-            })}
-            variant="outline"
-            size="sm"
-            className="p-2"
-          >
-            Test Toast
-          </Button>
         </motion.div>
 
         {/* Informations sur les spins */}
@@ -348,13 +335,8 @@ const WheelPage: React.FC = () => {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600">Spins disponibles</p>
                     <p className="text-2xl sm:text-3xl font-bold text-orange-600">
-                      {balance?.available_spins ? balance.available_spins : 0}
+                      {balance?.available_spins || 0}
                     </p>
-                    {balance && balance.available_spins > 0 && balance.available_spins < 1 && (
-                      <p className="text-xs text-orange-500">
-                        Contribution partielle
-                      </p>
-                    )}
                   </div>
                 </div>
                 
@@ -378,15 +360,7 @@ const WheelPage: React.FC = () => {
               {balance && balance.available_spins <= 0 && (
                 <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <p className="text-xs sm:text-sm text-yellow-700 text-center">
-                    ⚠️ Vous n'avez pas de spins. Faites un paiement pour en gagner !
-                  </p>
-                </div>
-              )}
-              
-              {balance && balance.available_spins > 0 && balance.available_spins < 1 && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs sm:text-sm text-blue-700 text-center">
-                    💡 Vous avez une contribution partielle. Continuez à contribuer pour gagner un spin complet !
+                    Vous n'avez pas de spins. Faites un paiement pour en gagner !
                   </p>
                 </div>
               )}
@@ -394,103 +368,197 @@ const WheelPage: React.FC = () => {
           </Card>
         </motion.div>
 
-        {/* Roue de la fortune */}
+        {/* Roue de la fortune avec D3.js */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
         >
           <Card className="bg-white shadow-xl border-0 overflow-hidden">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex justify-center items-center">
-                <div className="relative w-full max-w-[320px] aspect-square">
-                  
-                  {/* Indicateur en haut */}
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-3 z-20">
-                    <motion.div
-                      animate={{ y: isSpinning ? [0, 8, 0] : 0 }}
-                      transition={{ duration: 0.3, repeat: isSpinning ? Infinity : 0 }}
-                    >
-                      <div className="w-0 h-0 border-l-[16px] border-r-[16px] border-b-[24px] border-l-transparent border-r-transparent border-b-orange-500 drop-shadow-lg"></div>
-                    </motion.div>
+            <CardContent className="p-4 sm:p-8">
+              <div className="relative flex justify-center items-center">
+                
+                {/* Indicateur (pointeur) - Fixe en haut */}
+                <motion.div
+                  className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-4 z-20"
+                  animate={{ 
+                    y: isSpinning ? [0, 8, 0] : 0,
+                    scale: isSpinning ? [1, 1.1, 1] : 1
+                  }}
+                  transition={{ 
+                    duration: 0.15,
+                    repeat: isSpinning ? Infinity : 0
+                  }}
+                >
+                  <div className="relative">
+                    <div className="w-0 h-0 border-l-[18px] border-r-[18px] border-b-[28px] border-l-transparent border-r-transparent border-b-orange-500 drop-shadow-xl"></div>
+                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-orange-500 rounded-full"></div>
                   </div>
+                </motion.div>
 
-                  {/* Cercle extérieur décoratif */}
-                  <div className="absolute inset-0 rounded-full border-4 border-orange-200"></div>
-                  
-                  {/* La roue */}
-                  <div className="absolute inset-0 p-2">
-                    <motion.div
-                      className="w-full h-full rounded-full relative overflow-hidden shadow-2xl"
-                      animate={{ 
-                        rotate: wheelRotation
-                      }}
-                      transition={{ 
-                        duration: isSpinning ? animationDuration / 1000 : 0,
-                        ease: isSpinning ? [0.17, 0.67, 0.12, 0.99] : "linear"
-                      }}
-                    >
-                      <svg
-                        viewBox="0 0 320 320"
-                        className="w-full h-full"
-                        style={{ filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.15))' }}
-                      >
-                        {/* Segments */}
-                        {createWheelSegments()}
-                        
-                        {/* Centre blanc */}
-                        <circle
-                          cx="160"
-                          cy="160"
-                          r="35"
-                          fill="white"
-                          stroke="#e5e7eb"
-                          strokeWidth="3"
-                        />
-                        
-                        {/* Centre orange */}
-                        <circle
-                          cx="160"
-                          cy="160"
-                          r="25"
-                          fill="url(#orangeGradient)"
-                        />
-                        
-                        <defs>
-                          <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#f97316" />
-                            <stop offset="100%" stopColor="#ea580c" />
-                          </linearGradient>
-                        </defs>
-                        
-                        {/* Étoile */}
-                        <text
-                          x="160"
-                          y="160"
-                          fill="white"
-                          fontSize="20"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fontWeight="bold"
-                        >
-                          ★
-                        </text>
-                      </svg>
-                    </motion.div>
-                  </div>
-                  
-                  {/* Points décoratifs */}
-                  {!isSpinning && [0, 90, 180, 270].map((angle, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-3 h-3 bg-orange-400 rounded-full"
-                      style={{
-                        top: '50%',
-                        left: '50%',
-                        transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-165px)`
-                      }}
+                {/* SVG de la roue avec D3.js */}
+                <div className="relative">
+                  <motion.svg
+                    ref={svgRef}
+                    width={wheelSize}
+                    height={wheelSize}
+                    viewBox={`0 0 ${wheelSize} ${wheelSize}`}
+                    className="drop-shadow-2xl"
+                    animate={controls}
+                    style={{ originX: 0.5, originY: 0.5 }}
+                  >
+                    <defs>
+                      {/* Dégradé pour le centre */}
+                      <radialGradient id="centerGradient">
+                        <stop offset="0%" stopColor="#f97316" />
+                        <stop offset="100%" stopColor="#ea580c" />
+                      </radialGradient>
+                      
+                      {/* Ombre portée */}
+                      <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+                        <feOffset dx="0" dy="4" result="offsetblur"/>
+                        <feComponentTransfer>
+                          <feFuncA type="linear" slope="0.3"/>
+                        </feComponentTransfer>
+                        <feMerge> 
+                          <feMergeNode/>
+                          <feMergeNode in="SourceGraphic"/> 
+                        </feMerge>
+                      </filter>
+                    </defs>
+
+                    {/* Cercle extérieur décoratif */}
+                    <circle
+                      cx={centerX}
+                      cy={centerY}
+                      r={radius + 5}
+                      fill="none"
+                      stroke="#f97316"
+                      strokeWidth="3"
+                      opacity="0.3"
                     />
-                  ))}
+
+                    {/* Segments générés par D3 */}
+                    <g filter="url(#shadow)">
+                      {segments.map((segment, index) => {
+                        const arc = d3.arc()
+                          .innerRadius(0)
+                          .outerRadius(radius)
+                          .startAngle(segment.startAngle)
+                          .endAngle(segment.endAngle);
+
+                        const pathData = arc(null as any);
+                        
+                        // Calculer l'angle moyen du segment
+                        const midAngle = (segment.startAngle + segment.endAngle) / 2;
+                        
+                        // Position radiale pour le texte (70% du rayon)
+                        const textRadius = radius * 0.7;
+                        const textX = textRadius * Math.cos(midAngle - Math.PI / 2);
+                        const textY = textRadius * Math.sin(midAngle - Math.PI / 2);
+                        
+                        // Angle de rotation du texte (perpendiculaire au rayon)
+                        let textAngle = (midAngle * 180 / Math.PI) - 90;
+                        
+                        // Inverser le texte s'il est à l'envers (entre 90° et 270°)
+                        if (textAngle > 90 && textAngle < 270) {
+                          textAngle += 180;
+                        }
+                        
+                        // Adapter la taille du texte selon le nombre de segments
+                        const numSegments = segments.length;
+                        let fontSize = 12;
+                        if (numSegments > 8) fontSize = 10;
+                        if (numSegments > 12) fontSize = 8;
+                        if (numSegments > 16) fontSize = 7;
+                        
+                        // Tronquer le texte si trop long
+                        const maxLength = numSegments > 8 ? 8 : 12;
+                        const displayName = segment.name.length > maxLength 
+                          ? segment.name.substring(0, maxLength) + '...' 
+                          : segment.name;
+
+                        return (
+                          <g key={segment.id} transform={`translate(${centerX}, ${centerY})`}>
+                            {/* Segment */}
+                            <path
+                              d={pathData || ''}
+                              fill={segment.color}
+                              stroke="white"
+                              strokeWidth="3"
+                              className="transition-opacity duration-300"
+                            />
+                            
+                            {/* Texte du segment - orienté radialement */}
+                            <text
+                              x={textX}
+                              y={textY}
+                              fill="white"
+                              fontSize={fontSize}
+                              fontWeight="700"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              transform={`rotate(${textAngle}, ${textX}, ${textY})`}
+                              style={{ 
+                                textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                                pointerEvents: 'none',
+                                userSelect: 'none'
+                              }}
+                            >
+                              {displayName}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </g>
+
+                    {/* Centre de la roue */}
+                    <g transform={`translate(${centerX}, ${centerY})`}>
+                      {/* Cercle blanc extérieur */}
+                      <circle r="45" fill="white" stroke="#e5e7eb" strokeWidth="3"/>
+                      
+                      {/* Cercle orange avec dégradé */}
+                      <circle r="35" fill="url(#centerGradient)"/>
+                      
+                      {/* Étoile */}
+                      <text
+                        fill="white"
+                        fontSize="28"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                      >
+                        ★
+                      </text>
+                    </g>
+
+                    {/* Points décoratifs aux coins */}
+                    {!isSpinning && [0, 90, 180, 270].map((angle, i) => {
+                      const rad = (angle * Math.PI) / 180;
+                      const x = centerX + (radius + 15) * Math.cos(rad - Math.PI / 2);
+                      const y = centerY + (radius + 15) * Math.sin(rad - Math.PI / 2);
+                      
+                      return (
+                        <motion.circle
+                          key={i}
+                          cx={x}
+                          cy={y}
+                          r="4"
+                          fill="#f97316"
+                          animate={{
+                            scale: [1, 1.3, 1],
+                            opacity: [1, 0.6, 1]
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            delay: i * 0.5
+                          }}
+                        />
+                      );
+                    })}
+                  </motion.svg>
                 </div>
               </div>
               
@@ -504,7 +572,7 @@ const WheelPage: React.FC = () => {
                     className="mt-4 text-center"
                   >
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-100 rounded-full">
-                      <Target className="w-4 h-4 text-orange-600 animate-spin" />
+                      <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
                       <span className="text-orange-700 font-medium text-sm">
                         La roue tourne...
                       </span>
@@ -533,17 +601,17 @@ const WheelPage: React.FC = () => {
                   <div
                     key={prize.id}
                     className="rounded-lg p-3 text-center transition-transform hover:scale-105"
-                    style={{ backgroundColor: `${colors[index % colors.length]}15` }}
+                    style={{ backgroundColor: `${COLORS[index % COLORS.length]}15` }}
                   >
                     <div 
                       className="w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center"
-                      style={{ backgroundColor: colors[index % colors.length] }}
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     >
                       <Gift className="w-4 h-4 text-white" />
                     </div>
                     <p className="text-xs sm:text-sm font-semibold text-gray-900">{prize.name}</p>
                     {prize.description && (
-                      <p className="text-xs text-gray-600 mt-1">{prize.description}</p>
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-1">{prize.description}</p>
                     )}
                   </div>
                 ))}
@@ -571,24 +639,26 @@ const WheelPage: React.FC = () => {
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Confettis */}
-                {[...Array(15)].map((_, i) => (
+                {[...Array(20)].map((_, i) => (
                   <motion.div
                     key={i}
                     className="absolute w-2 h-2 rounded-full"
                     style={{ 
-                      backgroundColor: colors[i % colors.length],
+                      backgroundColor: COLORS[i % COLORS.length],
                       top: '50%',
                       left: '50%'
                     }}
                     animate={{
-                      x: [0, (Math.random() - 0.5) * 300],
-                      y: [0, (Math.random() - 0.5) * 300],
+                      x: [0, (Math.random() - 0.5) * 400],
+                      y: [0, (Math.random() - 0.5) * 400],
                       opacity: [1, 0],
-                      scale: [1, 0]
+                      scale: [1, 0],
+                      rotate: [0, Math.random() * 360]
                     }}
                     transition={{
                       duration: 1.5,
-                      delay: i * 0.05
+                      delay: i * 0.03,
+                      ease: "easeOut"
                     }}
                   />
                 ))}
@@ -607,7 +677,7 @@ const WheelPage: React.FC = () => {
                 </motion.div>
                 
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                  🎉 Félicitations !
+                  Félicitations !
                 </h2>
                 <p className="text-gray-600 mb-4">Vous avez gagné :</p>
                 
@@ -628,18 +698,10 @@ const WheelPage: React.FC = () => {
                 </div>
                 
                 <div className="space-y-3">
-                  <Button
-                    onClick={() => setShowResult(false)}
-                    variant="gradient"
-                    className="w-full"
-                  >
+                  <Button onClick={() => setShowResult(false)} variant="gradient" className="w-full">
                     Continuer
                   </Button>
-                  <Button
-                    onClick={handleGoBack}
-                    variant="ghost"
-                    className="w-full"
-                  >
+                  <Button onClick={handleGoBack} variant="ghost" className="w-full">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Retour au Dashboard
                   </Button>
