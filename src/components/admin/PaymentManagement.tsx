@@ -382,29 +382,27 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center">
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              Précédent
-            </Button>
-            <span className="px-4 py-2 text-sm text-gray-600">
-              Page {currentPage} sur {totalPages}
-            </span>
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Suivant
-            </Button>
-          </div>
+      <div className="flex justify-center">
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Précédent
+          </Button>
+          <span className="px-4 py-2 text-sm text-gray-600">
+            Page {currentPage} sur {totalPages || 1}
+          </span>
+          <Button
+            variant="ghost"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages || 1, prev + 1))}
+            disabled={currentPage === (totalPages || 1)}
+          >
+            Suivant
+          </Button>
         </div>
-      )}
+      </div>
 
       {/* Modale de statistiques */}
       <Modal isOpen={showStatsModal} onClose={() => setShowStatsModal(false)}>
