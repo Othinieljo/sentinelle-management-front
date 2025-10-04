@@ -185,7 +185,7 @@ const AdminDashboardNew: React.FC = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-600">Total Paiements</p>
+                    <p className="text-sm font-medium text-green-600">Paiements completés</p>
                     <p className="text-3xl font-bold text-green-900">{overview.total_payments}</p>
                     <p className="text-sm text-green-700">{overview.total_amount} FCFA</p>
                   </div>

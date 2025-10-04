@@ -3,13 +3,25 @@ import { apiClient } from '@/lib/api/api-client';
 import { User } from '@/types/auth';
 
 export interface UserStats {
-  user_id: string;
-  total_payments: number;
-  total_amount: string;
-  total_spins: number;
-  total_prizes_won: number;
-  last_payment: string;
-  last_spin: string;
+  user: {
+    id: string;
+    phone_number: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    balance: string;
+    is_active: boolean;
+    created_at: string;
+    last_login: string;
+  };
+  stats: {
+    total_payments: number;
+    total_amount_paid: number;
+    total_spins: number;
+    total_wins: number;
+    total_prizes: number;
+    win_rate: number;
+  };
 }
 
 export interface UsersResponse {
@@ -36,6 +48,13 @@ export interface UpdateUserRequest {
   last_name?: string;
   is_active?: boolean;
   role?: 'admin' | 'member';
+}
+
+export interface UserRoleCounts {
+  actifs: number;
+  administrateurs: number;
+  membres: number;
+  total: number;
 }
 
 export class UserService {
@@ -73,5 +92,10 @@ export class UserService {
   // Récupérer les statistiques d'un utilisateur
   static async getUserStats(id: string): Promise<UserStats> {
     return apiClient.get(`/users/${id}/stats`);
+  }
+
+  // Récupérer les statistiques des utilisateurs par rôle
+  static async getUserRoleCounts(): Promise<UserRoleCounts> {
+    return apiClient.get('/users/stats/count-by-role');
   }
 }

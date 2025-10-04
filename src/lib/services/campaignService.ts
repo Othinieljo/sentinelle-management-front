@@ -30,17 +30,34 @@ export interface Campaign {
 }
 
 export interface CampaignStats {
-  campaign_id: string;
-  total_participants: number;
-  total_payments: number;
-  total_amount_collected: string;
-  total_spins_distributed: number;
-  completion_percentage: number;
-  average_payment: string;
-  top_contributors: Array<{
-    user_id: string;
+  campaign: {
+    id: string;
     name: string;
-    total_amount: string;
+    description: string;
+    target_amount: string;
+    start_date: string;
+    end_date: string;
+    is_active: boolean;
+    created_at: string;
+  };
+  stats: {
+    total_participants: number;
+    total_collected: number;
+    progress_percentage: number;
+    remaining_amount: number;
+    days_remaining: number;
+    total_payments: number;
+    completed_payments: number;
+    pending_payments: number;
+    failed_payments: number;
+  };
+  recent_payments: Array<{
+    id: string;
+    amount: string;
+    status: string;
+    user_name: string;
+    user_phone: string;
+    created_at: string;
   }>;
 }
 
@@ -130,14 +147,28 @@ export class CampaignService {
       
       // Retourner des statistiques par défaut en cas d'erreur
       return {
-        campaign_id: id,
-        total_participants: 0,
-        total_payments: 0,
-        total_amount_collected: '0',
-        total_spins_distributed: 0,
-        completion_percentage: 0,
-        average_payment: '0',
-        top_contributors: []
+        campaign: {
+          id,
+          name: 'Campagne',
+          description: 'Description non disponible',
+          target_amount: '0',
+          start_date: new Date().toISOString(),
+          end_date: new Date().toISOString(),
+          is_active: false,
+          created_at: new Date().toISOString()
+        },
+        stats: {
+          total_participants: 0,
+          total_collected: 0,
+          progress_percentage: 0,
+          remaining_amount: 0,
+          days_remaining: 0,
+          total_payments: 0,
+          completed_payments: 0,
+          pending_payments: 0,
+          failed_payments: 0
+        },
+        recent_payments: []
       };
     }
   }

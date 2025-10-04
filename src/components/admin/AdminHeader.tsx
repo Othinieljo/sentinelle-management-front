@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Users, TrendingUp, Settings, LogOut, User } from 'lucide-react';
+import { Shield, Users, Settings, LogOut, User } from 'lucide-react';
 import { Card, CardContent } from '../ui';
 import { useAuthStore } from '../../stores/auth';
+import { UserService, UserRoleCounts } from '../../lib/services/userService';
 import { useRouter } from 'next/navigation';
 
 interface AdminHeaderProps {
@@ -14,6 +15,26 @@ interface AdminHeaderProps {
 const AdminHeader: React.FC<AdminHeaderProps> = ({ className }) => {
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const [userStats, setUserStats] = useState<UserRoleCounts | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Charger les statistiques des utilisateurs
+  const loadUserStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const stats = await UserService.getUserRoleCounts();
+      setUserStats(stats);
+    } catch (error) {
+      console.error('Erreur lors du chargement des statistiques:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, []);
+
+  // Charger les données au montage
+  useEffect(() => {
+    loadUserStats();
+  }, [loadUserStats]);
 
   if (!user) return null;
 
@@ -72,21 +93,13 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ className }) => {
                   <Users size={20} />
                   <span className="text-sm font-medium">Membres</span>
                 </div>
-                <div className="text-2xl font-bold text-blue-600">1,247</div>
-              </motion.div>
-
-              <motion.div
-                className="text-center"
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex items-center space-x-2 text-gray-600 mb-1">
-                  <TrendingUp size={20} />
-                  <span className="text-sm font-medium">Revenus</span>
-                </div>
-                <div className="text-2xl font-bold text-green-600">
-                  2.5M FCFA
-                </div>
+                {loadingStats ? (
+                  <div className="text-xl font-bold text-gray-400">...</div>
+                ) : (
+                  <div className="text-2xl font-bold text-blue-600">
+                    {userStats?.total?.toLocaleString() || '0'}
+                  </div>
+                )}
               </motion.div>
             </div>
 

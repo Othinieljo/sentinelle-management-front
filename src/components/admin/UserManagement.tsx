@@ -15,9 +15,10 @@ import {
   Phone,
   Calendar,
   DollarSign,
-  Users
+  Users,
+  AlertCircle
 } from 'lucide-react';
-import { UserService, UsersResponse, CreateUserRequest, UpdateUserRequest, UserStats } from '@/lib/services/userService';
+import { UserService, UsersResponse, CreateUserRequest, UpdateUserRequest, UserStats, UserRoleCounts } from '@/lib/services/userService';
 import { User } from '@/types/auth';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
@@ -49,6 +50,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  
+  // États pour les statistiques par rôle
+  const [roleCounts, setRoleCounts] = useState<UserRoleCounts>({
+    actifs: 0,
+    administrateurs: 0,
+    membres: 0,
+    total: 0
+  });
   
   // États pour les formulaires
   const [createForm, setCreateForm] = useState<CreateUserRequest>({
@@ -73,14 +83,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
         is_active: statusFilter !== 'all' ? statusFilter === 'active' : undefined,
       };
       
-      const response: UsersResponse = await UserService.getUsers(params);
+      const response: any = await UserService.getUsers(params);
       console.log('Users response:', response); // Debug
       
-      // Vérifier que la réponse a la structure attendue
+      // Vérifier que la réponse a la structure attendue (selon la nouvelle structure API)
       if (response && response.data && Array.isArray(response.data)) {
         setUsers(response.data);
-        setTotalPages(response.pagination?.totalPages || 1);
-        setTotalUsers(response.pagination?.total || 0);
+        setTotalPages(response.totalPages || 1);
+        setTotalUsers(response.total || 0);
       } else {
         // Fallback si la structure n'est pas correcte
         setUsers([]);
@@ -107,6 +117,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
 
   // Charger les statistiques d'un utilisateur
   const loadUserStats = useCallback(async (userId: string) => {
+    setLoadingStats(true);
     try {
       const stats = await UserService.getUserStats(userId);
       setUserStats(stats);
@@ -116,13 +127,36 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
         title: 'Erreur',
         message: 'Impossible de charger les statistiques'
       });
+    } finally {
+      setLoadingStats(false);
     }
   }, [addToast]);
 
-  // Effet pour charger les utilisateurs
+  // Charger les statistiques par rôle
+  const loadRoleCounts = useCallback(async () => {
+    try {
+      const counts = await UserService.getUserRoleCounts();
+      setRoleCounts(counts);
+    } catch (error: any) {
+      console.error('Error loading role counts:', error);
+      // Fallback vers les statistiques calculées localement
+      setRoleCounts({
+        actifs: users.filter(u => u.is_active).length,
+        administrateurs: users.filter(u => u.role === 'admin').length,
+        membres: users.filter(u => u.role === 'member').length,
+        total: totalUsers
+      });
+    }
+  }, [users, totalUsers]);
+
+  // Effet pour charger les utilisateurs et les statistiques
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  useEffect(() => {
+    loadRoleCounts();
+  }, [loadRoleCounts]);
 
   // Créer un utilisateur
   const handleCreateUser = async () => {
@@ -143,6 +177,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
         balance: '0'
       });
       loadUsers();
+
+      // Recharger les statistiques après la création
+      loadRoleCounts();
     } catch (error: any) {
       addToast({
         type: 'error',
@@ -219,8 +256,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
   // Ouvrir la modale de statistiques
   const openStatsModal = async (user: User) => {
     setSelectedUser(user);
-    await loadUserStats(user.id);
+    setUserStats(null); // Réinitialiser les anciennes données
     setShowStatsModal(true);
+    await loadUserStats(user.id);
   };
 
   return (
@@ -251,7 +289,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Utilisateurs</p>
-                <p className="text-2xl font-bold text-gray-900">{totalUsers}</p>
+                <p className="text-2xl font-bold text-gray-900">{roleCounts.total}</p>
               </div>
             </div>
           </CardContent>
@@ -266,7 +304,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
               <div>
                 <p className="text-sm text-gray-600">Actifs</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users?.filter(u => u.is_active).length || 0}
+                  {roleCounts.actifs}
                 </p>
               </div>
             </div>
@@ -281,9 +319,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Administrateurs</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users?.filter(u => u.role === 'admin').length || 0}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{roleCounts.administrateurs}</p>
               </div>
             </div>
           </CardContent>
@@ -297,9 +333,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Membres</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {users?.filter(u => u.role === 'member').length || 0}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{roleCounts.membres}</p>
               </div>
             </div>
           </CardContent>
@@ -579,36 +613,71 @@ const UserManagement: React.FC<UserManagementProps> = ({ className }) => {
           </h3>
         </ModalHeader>
         <ModalBody>
-          {userStats ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-semibold text-blue-900">Paiements</h4>
-                <p className="text-2xl font-bold text-blue-600">{userStats.total_payments}</p>
-                <p className="text-sm text-blue-700">Total: {userStats.total_amount} FCFA</p>
+          {loadingStats ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+                <div className="animate-ping absolute top-0 left-0 h-12 w-12 border-2 border-orange-200 rounded-full"></div>
               </div>
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-semibold text-green-900">Spins</h4>
-                <p className="text-2xl font-bold text-green-600">{userStats.total_spins}</p>
-                <p className="text-sm text-green-700">Spins utilisés</p>
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-700">Chargement des statistiques...</p>
+                <p className="text-sm text-gray-500">Récupération des données pour {selectedUser?.first_name} {selectedUser?.last_name}</p>
               </div>
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <h4 className="font-semibold text-purple-900">Prix Gagnés</h4>
-                <p className="text-2xl font-bold text-purple-600">{userStats.total_prizes_won}</p>
-                <p className="text-sm text-purple-700">Prix remportés</p>
+            </div>
+          ) : userStats ? (
+            <div className="space-y-4">
+              {/* Informations utilisateur */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-2">Informations Utilisateur</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="font-medium">Téléphone:</span> {userStats.user.phone_number}</div>
+                  <div><span className="font-medium">Rôle:</span> {userStats.user.role}</div>
+                  <div><span className="font-medium">Solde:</span> {userStats.user.balance} FCFA</div>
+                  <div><span className="font-medium">Statut:</span> {userStats.user.is_active ? 'Actif' : 'Inactif'}</div>
+                  <div><span className="font-medium">Créé le:</span> {new Date(userStats.user.created_at).toLocaleDateString('fr-FR')}</div>
+                  <div><span className="font-medium">Dernière connexion:</span> {new Date(userStats.user.last_login).toLocaleDateString('fr-FR')}</div>
+                </div>
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg">
-                <h4 className="font-semibold text-orange-900">Dernière Activité</h4>
-                <p className="text-sm text-orange-700">
-                  Paiement: {new Date(userStats.last_payment).toLocaleDateString('fr-FR')}
-                </p>
-                <p className="text-sm text-orange-700">
-                  Spin: {new Date(userStats.last_spin).toLocaleDateString('fr-FR')}
-                </p>
+
+              {/* Statistiques */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-semibold text-blue-900">Paiements</h4>
+                  <p className="text-2xl font-bold text-blue-600">{userStats.stats.total_payments}</p>
+                  <p className="text-sm text-blue-700">Total: {userStats.stats.total_amount_paid.toLocaleString()} FCFA</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <h4 className="font-semibold text-green-900">Spins</h4>
+                  <p className="text-2xl font-bold text-green-600">{userStats.stats.total_spins}</p>
+                  <p className="text-sm text-green-700">Spins utilisés</p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <h4 className="font-semibold text-purple-900">Victoires</h4>
+                  <p className="text-2xl font-bold text-purple-600">{userStats.stats.total_wins}</p>
+                  <p className="text-sm text-purple-700">Gains obtenus</p>
+                </div>
+                <div className="p-4 bg-orange-50 rounded-lg">
+                  <h4 className="font-semibold text-orange-900">Prix Totaux</h4>
+                  <p className="text-2xl font-bold text-orange-600">{userStats.stats.total_prizes}</p>
+                  <p className="text-sm text-orange-700">Prix remportés</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-yellow-50 rounded-lg">
+                <h4 className="font-semibold text-yellow-900">Taux de Réussite</h4>
+                <p className="text-3xl font-bold text-yellow-600">{userStats.stats.win_rate}%</p>
+                <p className="text-sm text-yellow-700">Pourcentage de spins gagnants</p>
               </div>
             </div>
           ) : (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-orange-600" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-700">Aucune donnée disponible</p>
+                <p className="text-sm text-gray-500">Impossible de charger les statistiques pour cet utilisateur</p>
+              </div>
             </div>
           )}
         </ModalBody>

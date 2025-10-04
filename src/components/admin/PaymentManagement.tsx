@@ -19,7 +19,7 @@ import {
   TrendingUp,
   Users
 } from 'lucide-react';
-import { PaymentService, Payment, PaymentsResponse, UpdatePaymentStatusRequest, PaymentStats } from '@/lib/services/paymentService';
+import { PaymentService, Payment, PaymentsResponse, UpdatePaymentStatusRequest, PaymentStats, PaymentStatusCounts } from '@/lib/services/paymentService';
 import { Button } from '@/components/ui/Button/Button';
 import { Input } from '@/components/ui/Input/Input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card/Card';
@@ -45,6 +45,14 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
   // États pour les modales
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
+  
+  // États pour les statistiques par statut
+  const [statusCounts, setStatusCounts] = useState<PaymentStatusCounts>({
+    pending: 0,
+    completed: 0,
+    failed: 0,
+    total: 0
+  });
 
   // Charger les paiements
   const loadPayments = useCallback(async () => {
@@ -56,10 +64,20 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
         status: statusFilter !== 'all' ? statusFilter : undefined,
       };
       
-      const response: PaymentsResponse = await PaymentService.getPayments(params);
-      setPayments(response.data);
-      setTotalPages(response.pagination.totalPages);
-      setTotalPayments(response.pagination.total);
+      const response: any = await PaymentService.getPayments(params);
+      console.log('Payments response:', response); // Debug
+      
+      // Vérifier que la réponse a la structure attendue (selon la nouvelle structure API)
+      if (response && response.data && Array.isArray(response.data)) {
+        setPayments(response.data);
+        setTotalPages(response.totalPages || 1);
+        setTotalPayments(response.total || 0);
+      } else {
+        // Fallback si la structure n'est pas correcte
+        setPayments([]);
+        setTotalPages(1);
+        setTotalPayments(0);
+      }
     } catch (error: any) {
       addToast({
         type: 'error',
@@ -85,10 +103,31 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
     }
   }, [addToast]);
 
-  // Effet pour charger les paiements
+  // Charger les statistiques par statut
+  const loadStatusCounts = useCallback(async () => {
+    try {
+      const counts = await PaymentService.getPaymentStatusCounts();
+      setStatusCounts(counts);
+    } catch (error: any) {
+      console.error('Error loading status counts:', error);
+      // Fallback vers les statistiques calculées localement
+      setStatusCounts({
+        pending: payments.filter(p => p.status === 'pending').length,
+        completed: payments.filter(p => p.status === 'completed').length,
+        failed: payments.filter(p => p.status === 'failed').length,
+        total: totalPayments
+      });
+    }
+  }, [payments, totalPayments]);
+
+  // Effet pour charger les paiements et les statistiques
   useEffect(() => {
     loadPayments();
   }, [loadPayments]);
+
+  useEffect(() => {
+    loadStatusCounts();
+  }, [loadStatusCounts]);
 
   // Modifier le statut d'un paiement
   const handleUpdatePaymentStatus = async (paymentId: string, newStatus: 'pending' | 'completed' | 'failed' | 'cancelled') => {
@@ -100,6 +139,7 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
         message: 'Statut du paiement mis à jour'
       });
       loadPayments();
+      loadStatusCounts(); // Recharger les statistiques après la mise à jour
     } catch (error: any) {
       addToast({
         type: 'error',
@@ -185,7 +225,7 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Paiements</p>
-                <p className="text-2xl font-bold text-gray-900">{totalPayments}</p>
+                <p className="text-2xl font-bold text-gray-900">{statusCounts.total}</p>
               </div>
             </div>
           </CardContent>
@@ -200,7 +240,7 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
               <div>
                 <p className="text-sm text-gray-600">Complétés</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {payments.filter(p => p.status === 'completed').length}
+                  {statusCounts.completed}
                 </p>
               </div>
             </div>
@@ -216,7 +256,7 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
               <div>
                 <p className="text-sm text-gray-600">En Attente</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {payments.filter(p => p.status === 'pending').length}
+                  {statusCounts.pending}
                 </p>
               </div>
             </div>
@@ -232,7 +272,7 @@ const PaymentManagement: React.FC<PaymentManagementProps> = ({ className }) => {
               <div>
                 <p className="text-sm text-gray-600">Échoués</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {payments.filter(p => p.status === 'failed').length}
+                  {statusCounts.failed}
                 </p>
               </div>
             </div>

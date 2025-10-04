@@ -36,6 +36,13 @@ export interface PaymentStats {
   }>;
 }
 
+export interface PaymentStatusCounts {
+  pending: number;
+  completed: number;
+  failed: number;
+  total: number;
+}
+
 export interface PaymentsResponse {
   data: Payment[];
   pagination: {
@@ -82,5 +89,10 @@ export class PaymentService {
   // Récupérer les paiements récents
   static async getRecentPayments(limit?: number): Promise<Payment[]> {
     return apiClient.get('/payments/recent', { params: { limit } });
+  }
+
+  // Récupérer les statistiques des paiements par statut
+  static async getPaymentStatusCounts(): Promise<PaymentStatusCounts> {
+    return apiClient.get('/payments/stats/count-by-status');
   }
 }

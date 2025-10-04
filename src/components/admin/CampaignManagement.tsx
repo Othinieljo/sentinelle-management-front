@@ -15,7 +15,12 @@ import {
   DollarSign,
   Activity,
   TrendingUp,
-  Users
+  Users,
+  AlertCircle,
+  CreditCard,
+  CheckCircle,
+  Clock,
+  XCircle
 } from 'lucide-react';
 import { CampaignService, Campaign, CreateCampaignRequest, UpdateCampaignRequest, CampaignStats } from '@/lib/services/campaignService';
 import { Button } from '@/components/ui/Button/Button';
@@ -47,6 +52,7 @@ const CampaignManagement: React.FC<CampaignManagementProps> = ({ className }) =>
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [campaignStats, setCampaignStats] = useState<CampaignStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
   
   // États pour les formulaires
   const [createForm, setCreateForm] = useState<CreateCampaignRequest>({
@@ -105,15 +111,18 @@ const CampaignManagement: React.FC<CampaignManagementProps> = ({ className }) =>
 
   // Charger les statistiques d'une campagne
   const loadCampaignStats = useCallback(async (campaignId: string) => {
+    setLoadingStats(true);
     try {
       const stats = await CampaignService.getCampaignStats(campaignId);
       setCampaignStats(stats);
     } catch (error: any) {
-      addToast({
-        type: 'error',
-        title: 'Erreur',
-        message: 'Impossible de charger les statistiques'
-      });
+        addToast({
+          type: 'error',
+          title: 'Erreur',
+          message: 'Impossible de charger les statistiques'
+        });
+    } finally {
+      setLoadingStats(false);
     }
   }, [addToast]);
 
@@ -235,8 +244,37 @@ const CampaignManagement: React.FC<CampaignManagementProps> = ({ className }) =>
   // Ouvrir la modale de statistiques
   const openStatsModal = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
-    await loadCampaignStats(campaign.id);
+    setCampaignStats(null); // Réinitialiser les anciennes données
     setShowStatsModal(true);
+    await loadCampaignStats(campaign.id);
+  };
+
+  // Obtenir l'icône du statut de paiement
+  const getPaymentStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'pending':
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      case 'failed':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  // Obtenir la couleur du statut de paiement
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
   // Filtrer les campagnes
@@ -690,57 +728,137 @@ const CampaignManagement: React.FC<CampaignManagementProps> = ({ className }) =>
           </h3>
         </ModalHeader>
         <ModalBody>
-          {campaignStats ? (
+          {loadingStats ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+                <div className="animate-ping absolute top-0 left-0 h-12 w-12 border-2 border-orange-200 rounded-full"></div>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-700">Chargement des statistiques...</p>
+                <p className="text-sm text-gray-500">Récupération des données pour {selectedCampaign?.name}</p>
+              </div>
+            </div>
+          ) : campaignStats ? (
             <div className="space-y-4">
+              {/* Informations de la campagne */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold text-gray-900 mb-2">Informations Campagne</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div><span className="font-medium">Nom:</span> {campaignStats.campaign.name}</div>
+                  <div><span className="font-medium">Statut:</span> {campaignStats.campaign.is_active ? 'Active' : 'Inactive'}</div>
+                  <div><span className="font-medium">Objectif:</span> {parseFloat(campaignStats.campaign.target_amount).toLocaleString()} FCFA</div>
+                  <div><span className="font-medium">Date de début:</span> {new Date(campaignStats.campaign.start_date).toLocaleDateString('fr-FR')}</div>
+                  <div><span className="font-medium">Date de fin:</span> {new Date(campaignStats.campaign.end_date).toLocaleDateString()}</div>
+                  <div><span className="font-medium">Créée le:</span> {new Date(campaignStats.campaign.created_at).toLocaleDateString('fr-FR')}</div>
+                </div>
+              </div>
+
+              {/* Statistiques générales */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <h4 className="font-semibold text-blue-900">Participants</h4>
-                  <p className="text-2xl font-bold text-blue-600">{campaignStats.total_participants}</p>
+                  <p className="text-2xl font-bold text-blue-600">{campaignStats.stats.total_participants}</p>
+                  <p className="text-sm text-blue-700">Total participants</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <h4 className="font-semibold text-green-900">Paiements</h4>
-                  <p className="text-2xl font-bold text-green-600">{campaignStats.total_payments}</p>
+                  <h4 className="font-semibold text-green-900">Montant Collecté</h4>
+                  <p className="text-2xl font-bold text-green-600">{campaignStats.stats.total_collected.toLocaleString()} FCFA</p>
+                  <p className="text-sm text-green-700">Contributions reçues</p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-lg">
-                  <h4 className="font-semibold text-purple-900">Montant Collecté</h4>
-                  <p className="text-2xl font-bold text-purple-600">{campaignStats.total_amount_collected} FCFA</p>
+                  <h4 className="font-semibold text-purple-900">Montant Restant</h4>
+                  <p className="text-2xl font-bold text-purple-600">{campaignStats.stats.remaining_amount.toLocaleString()} FCFA</p>
+                  <p className="text-sm text-purple-700">Objectif à atteindre</p>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg">
-                  <h4 className="font-semibold text-orange-900">Spins Distribués</h4>
-                  <p className="text-2xl font-bold text-orange-600">{campaignStats.total_spins_distributed}</p>
+                  <h4 className="font-semibold text-orange-900">Jours Restants</h4>
+                  <p className="text-2xl font-bold text-orange-600">{campaignStats.stats.days_remaining}</p>
+                  <p className="text-sm text-orange-700">Temps restant</p>
+                </div>
+              </div>
+
+              {/* Statistiques de paiements */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-semibold text-gray-900">Total Paiements</h4>
+                  <p className="text-2xl font-bold text-gray-600">{campaignStats.stats.total_payments}</p>
+                  <p className="text-sm text-gray-700">Tous paiements</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <h4 className="font-semibold text-green-900">Complétés</h4>
+                  <p className="text-2xl font-bold text-green-600">{campaignStats.stats.completed_payments}</p>
+                  <p className="text-sm text-green-700">Paiements réussis</p>
+                </div>
+                <div className="p-4 bg-yellow-50 rounded-lg">
+                  <h4 className="font-semibold text-yellow-900">En Attente</h4>
+                  <p className="text-2xl font-bold text-yellow-600">{campaignStats.stats.pending_payments}</p>
+                  <p className="text-sm text-yellow-700">En traitement</p>
+                </div>
+                <div className="p-4 bg-red-50 rounded-lg">
+                  <h4 className="font-semibold text-red-900">Échoués</h4>
+                  <p className="text-2xl font-bold text-red-600">{campaignStats.stats.failed_payments}</p>
+                  <p className="text-sm text-red-700">Paiements échoués</p>
                 </div>
               </div>
               
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold text-gray-900 mb-2">Progression</h4>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="p-4 bg-yellow-50 rounded-lg">
+                <h4 className="font-semibold text-yellow-900">Progression</h4>
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
                   <div 
-                    className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${campaignStats.completion_percentage}%` }}
+                    className="bg-orange-600 h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${campaignStats.stats.progress_percentage}%` }}
                   ></div>
                 </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  {campaignStats.completion_percentage.toFixed(1)}% de l'objectif atteint
-                </p>
+                <p className="text-xl font-bold text-yellow-600">{campaignStats.stats.progress_percentage}%</p>
+                <p className="text-sm text-yellow-700">de l'objectif atteint</p>
               </div>
-              
-              {campaignStats.top_contributors.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Top Contributeurs</h4>
-                  <div className="space-y-2">
-                    {campaignStats.top_contributors.slice(0, 3).map((contributor, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                        <span className="font-medium">{contributor.name}</span>
-                        <span className="text-orange-600 font-semibold">{contributor.total_amount} FCFA</span>
+
+              {/* Paiements récents */}
+              {campaignStats.recent_payments && campaignStats.recent_payments.length > 0 && (
+                <div className="p-4 bg-white border border-gray-200 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-4">Paiements Récents</h4>
+                  <div className="space-y-3">
+                    {campaignStats.recent_payments.slice(0, 5).map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          {getPaymentStatusIcon(payment.status)}
+                          <div>
+                            <p className="font-medium text-gray-900">{payment.user_name}</p>
+                            <p className="text-sm text-gray-600">{payment.user_phone}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">{parseFloat(payment.amount).toLocaleString()} FCFA</p>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 text-xs rounded-full ${getPaymentStatusColor(payment.status)}`}>
+                              {payment.status}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(payment.created_at).toLocaleDateString('fr-FR')}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
+                  {campaignStats.recent_payments.length > 5 && (
+                    <p className="text-sm text-gray-500 mt-3 text-center">
+                      +{campaignStats.recent_payments.length - 5} autres paiements
+                    </p>
+                  )}
                 </div>
               )}
             </div>
           ) : (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-orange-600" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-700">Aucune donnée disponible</p>
+                <p className="text-sm text-gray-500">Impossible de charger les statistiques pour cette campagne</p>
+              </div>
             </div>
           )}
         </ModalBody>
