@@ -64,6 +64,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string>('');
+  const [actualSpinsEarned, setActualSpinsEarned] = useState<number | null>(null);
   
   // Fonction pour naviguer vers la roue
   const handleGoToWheel = () => {
@@ -133,6 +134,9 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
 
       const payment = await MemberService.createPayment(paymentData);
       
+      // Stocker la valeur réelle des spins gagnés du backend (s'assurer que c'est un nombre)
+      setActualSpinsEarned(Number(payment.spins_earned));
+      
       // Générer le lien Wave avec le montant dynamique
       const waveUrl = `https://pay.wave.com/m/M_ci_sV5WKIkOaX8U/c/ci/?amount=${paymentAmount}`;
       setPaymentUrl(waveUrl);
@@ -161,6 +165,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
       setShowPaymentModal(false);
       setPaymentAmount(0);
       setPaymentUrl('');
+      setActualSpinsEarned(null);
     }
   };
 
@@ -372,7 +377,12 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
         </motion.div>
 
         {/* Modale de Paiement */}
-        <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)}>
+        <Modal isOpen={showPaymentModal} onClose={() => {
+          setShowPaymentModal(false);
+          setPaymentAmount(0);
+          setPaymentUrl('');
+          setActualSpinsEarned(null);
+        }}>
           <ModalHeader>
             <h3 className="text-lg font-semibold">Faire un Paiement</h3>
           </ModalHeader>
@@ -393,6 +403,8 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
                       const numValue = parseFloat(value);
                       setPaymentAmount(isNaN(numValue) ? 0 : numValue);
                     }
+                    // Réinitialiser la valeur réelle si l'utilisateur change le montant
+                    setActualSpinsEarned(null);
                   }}
                   onFocus={(e) => {
                     if (paymentAmount === 0) {
@@ -407,12 +419,12 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
                 </p>
               </div>
               
-              {paymentAmount >= 100 && (
+              {actualSpinsEarned !== null && (
                 <div className="bg-orange-50 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Spins gagnés:</span>
                     <span className="font-semibold text-orange-600">
-                      {(paymentAmount / activeCampaign.amount_per_spin).toFixed(1)}
+                      {Number(actualSpinsEarned).toFixed(6).replace(/\.?0+$/, '')}
                     </span>
                   </div>
                 </div>
@@ -446,7 +458,12 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({ className }) => {
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" onClick={() => setShowPaymentModal(false)}>
+            <Button variant="ghost" onClick={() => {
+              setShowPaymentModal(false);
+              setPaymentAmount(0);
+              setPaymentUrl('');
+              setActualSpinsEarned(null);
+            }}>
               Annuler
             </Button>
             {!paymentUrl && (
