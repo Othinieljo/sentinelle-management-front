@@ -185,7 +185,7 @@ const WheelPage: React.FC = () => {
 
   // Gérer le tour de roue
   const handleSpin = async () => {
-    if (!balance || balance.available_spins <= 0) {
+    if (!balance || balance.available_spins < 1) {
       addToast({
         type: 'error',
         title: 'Pas de spins disponibles',
@@ -356,7 +356,7 @@ const WheelPage: React.FC = () => {
                 
                 <Button
                   onClick={handleSpin}
-                  disabled={isSpinning || (balance?.available_spins || 0) <= 0}
+                  disabled={isSpinning || (balance?.available_spins || 0) < 1}
                   variant="gradient"
                   className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-semibold"
                 >
@@ -371,7 +371,7 @@ const WheelPage: React.FC = () => {
                 </Button>
               </div>
               
-              {balance && balance.available_spins <= 0 && (
+              {balance && balance.available_spins < 1 && (
                 <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <p className="text-xs sm:text-sm text-yellow-700 text-center">
                     Vous n'avez pas de spins. Faites un paiement pour en gagner !
@@ -532,7 +532,7 @@ const WheelPage: React.FC = () => {
                       transform={`translate(${centerX}, ${centerY})`}
                       onClick={handleSpin}
                       style={{ 
-                        cursor: isSpinning || (balance?.available_spins || 0) <= 0 ? 'not-allowed' : 'pointer'
+                        cursor: isSpinning || (balance?.available_spins || 0) < 1 ? 'not-allowed' : 'pointer'
                       }}
                       className="transition-transform hover:scale-110"
                     >

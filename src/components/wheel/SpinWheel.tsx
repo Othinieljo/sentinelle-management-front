@@ -62,7 +62,7 @@ const SpinWheel: React.FC<SpinWheelProps> = ({
 
   // Lancer la roue
   const handleSpin = async () => {
-    if (!balance || balance.available_spins <= 0) {
+    if (!balance || balance.available_spins < 1) {
       addToast({
         type: 'warning',
         title: 'Aucun spin disponible',
@@ -225,7 +225,7 @@ const SpinWheel: React.FC<SpinWheelProps> = ({
         <div className="text-center">
           <Button
             onClick={handleSpin}
-            disabled={isSpinning || !balance || balance.available_spins <= 0 || activePrizes.length === 0}
+            disabled={isSpinning || !balance || balance.available_spins < 1 || activePrizes.length === 0}
             variant="gradient"
             size="lg"
             className="px-8 py-3 text-lg font-semibold"
@@ -243,7 +243,7 @@ const SpinWheel: React.FC<SpinWheelProps> = ({
             )}
           </Button>
           
-          {(!balance || balance.available_spins <= 0) && (
+          {(!balance || balance.available_spins < 1) && (
             <p className="text-sm text-gray-500 mt-2">
               Vous n'avez pas de spins disponibles
             </p>
